@@ -14,6 +14,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.tag.FluidTags;
 
 public final class CommonUniforms {
 	private static final MinecraftClient client = MinecraftClient.getInstance();
@@ -37,7 +39,8 @@ public final class CommonUniforms {
 			.uniform1b(PER_FRAME, "hideGUI", () -> client.options.hudHidden)
 			.uniform1f(PER_FRAME, "eyeAltitude", () -> Objects.requireNonNull(client.getCameraEntity()).getY())
 			.uniform1i(PER_FRAME, "isEyeInWater", CommonUniforms::isEyeInWater)
-			.uniform1f(PER_FRAME, "blindness", CommonUniforms::getBlindness);
+			.uniform1f(PER_FRAME, "blindness", CommonUniforms::getBlindness)
+			.uniform1i(ONCE, "noisetex", () -> 15);
 	}
 
 	private static float getBlindness() {
@@ -61,7 +64,7 @@ public final class CommonUniforms {
 
 		if (cameraEntity.isSubmergedInWater()) {
 			return 1;
-		} else if (cameraEntity.isInLava()) {
+		} else if (cameraEntity.isSubmergedIn(FluidTags.LAVA)) {
 			return 2;
 		} else {
 			return 0;
