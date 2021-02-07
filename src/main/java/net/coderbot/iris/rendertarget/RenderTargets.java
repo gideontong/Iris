@@ -20,7 +20,8 @@ public class RenderTargets {
 	private final RenderTarget[] targets;
 	private final DepthTexture depthTexture;
 	private final DepthTexture noTranslucents;
-//	private final DepthTexture shadowTexture;
+	private final DepthTexture shadowTexture;
+	private final DepthTexture shadowTexturenoTranslucents;
 
 	private int cachedWidth;
 	private int cachedHeight;
@@ -43,7 +44,8 @@ public class RenderTargets {
 
 		this.depthTexture = new DepthTexture(width, height);
 		this.noTranslucents = new DepthTexture(width, height);
-		//this.shadowTexture = new DepthTexture(4096, 4096);
+		this.shadowTexture = new DepthTexture(4096, 4096);
+		this.shadowTexturenoTranslucents = new DepthTexture(4096, 4096);
 
 		this.cachedWidth = width;
 		this.cachedHeight = height;
@@ -80,8 +82,13 @@ public class RenderTargets {
 	}
 
 	public DepthTexture getShadowTexture() {
-		//return shadowTexture;
-		return null;
+		return shadowTexture;
+		//return null;
+	}
+
+	public DepthTexture getShadowTexturenoTranslucents() {
+		return shadowTexturenoTranslucents;
+		//return null;
 	}
 
 	public void resizeIfNeeded(int newWidth, int newHeight) {

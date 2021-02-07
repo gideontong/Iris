@@ -361,13 +361,13 @@ public class ShaderPipeline {
 		shadowframe.bind();
 		shadow.use();
 		RenderSystem.activeTexture(GL15C.GL_TEXTURE0 + PostProcessUniforms.SHADOW_TEX_0);
-		//RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
 		RenderSystem.activeTexture(GL15C.GL_TEXTURE1 + PostProcessUniforms.SHADOW_TEX_1);
-		//RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
 		RenderSystem.activeTexture(GL15C.GL_TEXTURE2 + PostProcessUniforms.SHADOW_COLOR_0);
-		//RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
 		RenderSystem.activeTexture(GL15C.GL_TEXTURE3 + PostProcessUniforms.SHADOW_COLOR_1);
-		//RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
 		setupAttributes(shadow);
 	}
 	public void endShadow() {
