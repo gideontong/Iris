@@ -9,6 +9,8 @@ public class CapturedRenderingState {
 
 	private Matrix4f gbufferModelView;
 	private Matrix4f gbufferProjection;
+	private Matrix4f shadowModelView;
+	private Matrix4f shadowProjection;
 	private float tickDelta;
 	private BlockEntity currentRenderedBlockEntity;
 	private Entity currentRenderedEntity;
@@ -21,7 +23,7 @@ public class CapturedRenderingState {
 	}
 
 	public void setGbufferModelView(Matrix4f gbufferModelView) {
-		this.gbufferModelView = gbufferModelView;
+		this.gbufferModelView = gbufferModelView.copy();
 	}
 
 	public Matrix4f getGbufferProjection() {
@@ -29,7 +31,23 @@ public class CapturedRenderingState {
 	}
 
 	public void setGbufferProjection(Matrix4f gbufferProjection) {
-		this.gbufferProjection = gbufferProjection;
+		this.gbufferProjection = gbufferProjection.copy();
+	}
+
+	public Matrix4f getShadowModelView() {
+		return shadowModelView;
+	}
+
+	public void setShadowModelView(Matrix4f shadowModelView) {
+		this.shadowModelView = shadowModelView.copy();
+	}
+
+	public Matrix4f getShadowProjection() {
+		return shadowProjection;
+	}
+
+	public void setShadowProjection(Matrix4f shadowProjection) {
+		this.shadowProjection = shadowProjection.copy();
 	}
 
 	public void setTickDelta(float tickDelta) {

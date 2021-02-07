@@ -10,19 +10,19 @@ import java.util.Optional;
 import java.util.zip.ZipException;
 
 import com.google.common.base.Throwables;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.coderbot.iris.config.IrisConfig;
 import net.coderbot.iris.pipeline.ShaderPipeline;
 import net.coderbot.iris.postprocess.CompositeRenderer;
 import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.shaderpack.ShaderPack;
+import net.minecraft.util.Tickable;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.options.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
@@ -43,14 +43,27 @@ public class Iris implements ClientModInitializer {
 
 	private static ShaderPack currentPack;
 	private static ShaderPipeline pipeline;
-	private static RenderTargets renderTargets;
+	public static RenderTargets renderTargets;
 	private static CompositeRenderer compositeRenderer;
 	private static IrisConfig irisConfig;
 	private static FileSystem zipFileSystem;
+
 	public static KeyBinding reloadKeybind;
 
 	@Override
 	public void onInitializeClient() {
+		FabricLoader.getInstance().getModContainer("sodium").ifPresent(
+			modContainer -> {
+				String versionString = modContainer.getMetadata().getVersion().getFriendlyString();
+
+				// A lot of people are reporting visual bugs with Iris + Sodium. This makes it so that if we don't have
+				// the right fork of Sodium, it will just crash.
+				if (!versionString.equals("IRIS-SNAPSHOT")) {
+					throw new IllegalStateException("You do not have a compatible version of Sodium installed! You have " + versionString + " but IRIS-SNAPSHOT is expected");
+				}
+			}
+		);
+
 		try {
 			Files.createDirectories(shaderpacksDirectory);
 		} catch (IOException e) {
@@ -67,8 +80,8 @@ public class Iris implements ClientModInitializer {
 			logger.catching(Level.ERROR, e);
 		}
 
-
 		loadShaderpack();
+
 		reloadKeybind = KeyBindingHelper.registerKeyBinding(new KeyBinding("iris.keybind.reload", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_R, "iris.keybinds"));
 
 		ClientTickEvents.END_CLIENT_TICK.register(minecraftClient -> {
@@ -76,8 +89,6 @@ public class Iris implements ClientModInitializer {
 
 				try {
 					reload();
-					// TODO: Is this needed?
-					// minecraftClient.worldRenderer.reload();
 
 					if (minecraftClient.player != null){
 						minecraftClient.player.sendMessage(new TranslatableText("iris.shaders.reloaded"), false);
@@ -92,6 +103,10 @@ public class Iris implements ClientModInitializer {
 				}
 			}
 		});
+	}
+
+	public static Path getShaderPackDir() {
+		return shaderpacksDirectory;
 	}
 
 	public static void loadShaderpack() {
@@ -176,6 +191,8 @@ public class Iris implements ClientModInitializer {
 			throw new RuntimeException("Failed to load internal shaderpack!", e);
 		}
 
+		getIrisConfig().setShaderPackName("(internal)");
+
 		logger.info("Using internal shaders");
 	}
 
@@ -188,6 +205,12 @@ public class Iris implements ClientModInitializer {
 
 		// Load the new shaderpack
 		loadShaderpack();
+
+		// If Sodium is loaded, we need to reload the world renderer to properly recreate the ChunkRenderBackend
+		// Otherwise, the terrain shaders won't be changed properly.
+		if (FabricLoader.getInstance().isModLoaded("sodium")) {
+			MinecraftClient.getInstance().worldRenderer.reload();
+		}
 	}
 
 	/**

@@ -6,6 +6,9 @@ import static net.coderbot.iris.gl.uniform.UniformUpdateFrequency.PER_FRAME;
 import java.util.Objects;
 
 import net.coderbot.iris.gl.uniform.UniformHolder;
+import net.coderbot.iris.pipeline.ShaderPipeline;
+import net.coderbot.iris.postprocess.PostProcessUniforms;
+import net.coderbot.iris.postprocess.PostProcessUniformsRest;
 import net.coderbot.iris.shaderpack.IdMap;
 import net.coderbot.iris.texunits.TextureUnit;
 
@@ -32,6 +35,7 @@ public final class CommonUniforms {
 		CelestialUniforms.addCelestialUniforms(uniforms);
 		IdMapUniforms.addIdMapUniforms(uniforms, idMap);
 		MatrixUniforms.addMatrixUniforms(uniforms);
+		PostProcessUniformsRest.addPostProcessUniforms(ShaderPipeline.builder);
 
 		uniforms
 			.uniform1i(ONCE, "texture", TextureUnit.TERRAIN::getSamplerId)
@@ -60,11 +64,11 @@ public final class CommonUniforms {
 	}
 
 	private static int isEyeInWater() {
-		Entity cameraEntity = Objects.requireNonNull(client.getCameraEntity());
+		FluidState submergedFluid = client.gameRenderer.getCamera().getSubmergedFluidState();
 
-		if (cameraEntity.isSubmergedInWater()) {
+		if (submergedFluid.isIn(FluidTags.WATER)) {
 			return 1;
-		} else if (cameraEntity.isSubmergedIn(FluidTags.LAVA)) {
+		} else if (submergedFluid.isIn(FluidTags.LAVA)) {
 			return 2;
 		} else {
 			return 0;

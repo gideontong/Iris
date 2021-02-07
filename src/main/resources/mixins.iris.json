@@ -6,17 +6,30 @@
   "client": [
 	"MixinDebugHud",
 	"MixinGameRenderer",
+    "MixinEntityRenderDispatcher",
 	"MixinGlStateManager",
 	"MixinImmediateVertexConsumerProvider",
 	"MixinParticleManager",
 	"MixinTranslationStorage",
 	"MixinWorldRenderer",
+	"fabulous.MixinDisableFabulousGraphics",
+	"fabulous.MixinOption",
+	"gbuffer.MixinWorldRenderer",
+    "MixinHeldItemRenderer",
+    "MixinInGameHud",
+    "renderlayer.MixinFixEyesTranslucency",
+    "renderlayer.MixinMultiPhaseParameters",
+    "gui.AccessorScreen",
+    "gui.MixinVideoOptionsScreen",
+    "renderlayer.MixinMultiPhaseParametersBuilder",
+    "renderlayer.MixinRenderLayer",
+    "renderlayer.RenderLayerAccessor",
+    "renderlayer.RenderPhaseAccessor",
 	"texunits.MixinBufferVertexConsumer",
 	"texunits.MixinGlStateManager",
 	"texunits.MixinLightmapTextureManager",
 	"texunits.MixinOverlayTexture",
-	"texunits.MixinVertexFormats",
-	"gbuffer.MixinWorldRenderer"
+	"texunits.MixinVertexFormats"
   ],
   "injectors": {
 	"defaultRequire": 1

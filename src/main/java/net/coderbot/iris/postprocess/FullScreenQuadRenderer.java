@@ -7,7 +7,6 @@ import org.lwjgl.opengl.GL11C;
 import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.util.math.Matrix4f;
 
@@ -48,7 +47,7 @@ public class FullScreenQuadRenderer {
 	private void renderQuad() {
 		quad.bind();
 		VertexFormats.POSITION_COLOR_TEXTURE.startDrawing(0L);
-		quad.draw(IDENTITY);
+		quad.draw(IDENTITY, GL11C.GL_TRIANGLES);
 		VertexFormats.POSITION_COLOR_TEXTURE.endDrawing();
 		VertexBuffer.unbind();
 	}
@@ -65,10 +64,10 @@ public class FullScreenQuadRenderer {
 	 * Creates and uploads a vertex buffer containing a single full-screen quad
 	 */
 	private static VertexBuffer createQuad() {
-		VertexBuffer quad = new VertexBuffer();
+		VertexBuffer quad = new VertexBuffer(VertexFormats.POSITION_COLOR_TEXTURE);
 
 		BufferBuilder buffer = new BufferBuilder(6 * VertexFormats.POSITION_COLOR_TEXTURE.getVertexSizeInteger());
-		buffer.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE);
+		buffer.begin(GL11C.GL_TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE);
 
 		// NB: Use counterclockwise order here! Otherwise these triangles will be invisible.
 

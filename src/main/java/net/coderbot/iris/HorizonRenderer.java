@@ -8,7 +8,6 @@ import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 
@@ -119,7 +118,7 @@ public class HorizonRenderer {
 		BufferBuilder buffer = Tessellator.getInstance().getBuffer();
 
 		// Build the horizon quads into a buffer
-		buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
+		buffer.begin(GL11.GL_QUADS, VertexFormats.POSITION);
 		buildHorizon(buffer);
 		buffer.end();
 

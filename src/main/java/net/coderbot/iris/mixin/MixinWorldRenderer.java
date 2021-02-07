@@ -1,7 +1,13 @@
 package net.coderbot.iris.mixin;
 
+import static net.coderbot.iris.ShadowProject.camera2;
+
 import net.coderbot.iris.HorizonRenderer;
 import net.coderbot.iris.Iris;
+import net.coderbot.iris.ShadowProject;
+import net.coderbot.iris.layer.GbufferProgram;
+import net.coderbot.iris.layer.GbufferPrograms;
+import net.coderbot.iris.pipeline.ShaderPipeline;
 import net.coderbot.iris.uniforms.CapturedRenderingState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -31,7 +37,13 @@ public class MixinWorldRenderer {
 	@Inject(method = RENDER, at = @At("HEAD"))
 	private void iris$beginWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
 		CapturedRenderingState.INSTANCE.setGbufferModelView(matrices.peek().getModel());
+		CapturedRenderingState.INSTANCE.setGbufferProjection(gameRenderer.getBasicProjectionMatrix(camera, tickDelta, true));
 		CapturedRenderingState.INSTANCE.setTickDelta(tickDelta);
+		ShadowProject.idk();
+		CapturedRenderingState.INSTANCE.setShadowProjection(gameRenderer.getBasicProjectionMatrix(camera2, tickDelta, true));
+		GbufferPrograms.useProgram(GbufferProgram.SHADOW);
+		//Iris.getPipeline().beginShadow();
+		Iris.getPipeline().endShadow();
 		Iris.getPipeline().beginWorldRender();
 	}
 
@@ -85,12 +97,12 @@ public class MixinWorldRenderer {
 
 	@Inject(method = RENDER_LAYER, at = @At("HEAD"))
 	private void iris$beginTerrainLayer(RenderLayer renderLayer, MatrixStack matrixStack, double cameraX, double cameraY, double cameraZ, CallbackInfo callback) {
-		Iris.getPipeline().beginTerrainLayer(renderLayer);
+		//Iris.getPipeline().beginTerrainLayer(renderLayer);
 	}
 
 	@Inject(method = RENDER_LAYER, at = @At("RETURN"))
 	private void iris$endTerrainLayer(RenderLayer renderLayer, MatrixStack matrixStack, double cameraX, double cameraY, double cameraZ, CallbackInfo callback) {
-		Iris.getPipeline().endTerrainLayer(renderLayer);
+		//Iris.getPipeline().endTerrainLayer(renderLayer);
 	}
 
 	@Inject(method = "renderWeather(Lnet/minecraft/client/render/LightmapTextureManager;FDDD)V", at = @At("HEAD"))

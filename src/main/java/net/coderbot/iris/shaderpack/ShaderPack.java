@@ -1,7 +1,6 @@
 package net.coderbot.iris.shaderpack;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -13,51 +12,92 @@ import java.util.Properties;
 
 import net.coderbot.iris.Iris;
 import net.coderbot.iris.gl.texture.InternalTextureFormat;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.InvalidIdentifierException;
+import net.minecraft.util.registry.BuiltinRegistries;
+import net.minecraft.util.registry.DynamicRegistryManager;
+import net.minecraft.util.registry.Registry;
+import net.minecraft.world.World;
 import org.apache.logging.log4j.Level;
 
 public class ShaderPack {
 	private final PackDirectives packDirectives;
 	private final ProgramSource gbuffersBasic;
+	private final ProgramSource gbuffersBeaconBeam;
 	private final ProgramSource gbuffersTextured;
 	private final ProgramSource gbuffersTexturedLit;
+	private final ProgramSource shadow;
 	private final ProgramSource gbuffersTerrain;
+	private final ProgramSource gbuffersDamagedBlock;
 	private final ProgramSource gbuffersWater;
 	private final ProgramSource gbuffersSkyBasic;
 	private final ProgramSource gbuffersSkyTextured;
 	private final ProgramSource gbuffersClouds;
 	private final ProgramSource gbuffersEntities;
+	private final ProgramSource gbuffersGlint;
+	private final ProgramSource gbuffersEntityEyes;
 	private final ProgramSource gbuffersBlock;
 	private final ProgramSource[] composite;
 	private final ProgramSource compositeFinal;
 	private final IdMap idMap;
 	private final Map<String, Map<String, String>> langMap;
+	private final ShaderProperties shaderProperties;
 
 	public ShaderPack(Path root) throws IOException {
+		ShaderProperties shaderProperties = loadProperties(root, "shaders.properties")
+			.map(ShaderProperties::new)
+			.orElseGet(ShaderProperties::empty);
+
 		this.packDirectives = new PackDirectives();
 
-		this.gbuffersBasic = readProgramSource(root, "gbuffers_basic", this);
-		this.gbuffersTextured = readProgramSource(root, "gbuffers_textured", this);
-		this.gbuffersTexturedLit = readProgramSource(root, "gbuffers_textured_lit", this);
-		this.gbuffersTerrain = readProgramSource(root, "gbuffers_terrain", this);
-		this.gbuffersWater = readProgramSource(root, "gbuffers_water", this);
-		this.gbuffersSkyBasic = readProgramSource(root, "gbuffers_skybasic", this);
-		this.gbuffersSkyTextured = readProgramSource(root, "gbuffers_skytextured", this);
-		this.gbuffersClouds = readProgramSource(root, "gbuffers_clouds", this);
-		this.gbuffersEntities = readProgramSource(root, "gbuffers_entities", this);
-		this.gbuffersBlock = readProgramSource(root, "gbuffers_block", this);
+		this.gbuffersBasic = readProgramSource(root, "gbuffers_basic", this, shaderProperties);
+		this.gbuffersBeaconBeam = readProgramSource(root, "gbuffers_beaconbeam", this, shaderProperties);
+		this.gbuffersTextured = readProgramSource(root, "gbuffers_textured", this, shaderProperties);
+		this.gbuffersTexturedLit = readProgramSource(root, "gbuffers_textured_lit", this, shaderProperties);
+		this.gbuffersTerrain = readProgramSource(root, "gbuffers_terrain", this, shaderProperties);
+		this.shadow = readProgramSource(root, "shadow", this, shaderProperties);
+		this.gbuffersDamagedBlock = readProgramSource(root, "gbuffers_damagedblock", this, shaderProperties);
+		this.gbuffersWater = readProgramSource(root, "gbuffers_water", this, shaderProperties);
+		this.gbuffersSkyBasic = readProgramSource(root, "gbuffers_skybasic", this, shaderProperties);
+		this.gbuffersSkyTextured = readProgramSource(root, "gbuffers_skytextured", this, shaderProperties);
+		this.gbuffersClouds = readProgramSource(root, "gbuffers_clouds", this, shaderProperties);
+		this.gbuffersEntities = readProgramSource(root, "gbuffers_entities", this, shaderProperties);
+		this.gbuffersGlint = readProgramSource(root, "gbuffers_armor_glint", this, shaderProperties);
+		this.gbuffersEntityEyes = readProgramSource(root, "gbuffers_spidereyes", this, shaderProperties);
+		this.gbuffersBlock = readProgramSource(root, "gbuffers_block", this, shaderProperties);
 
 		this.composite = new ProgramSource[16];
 
 		for (int i = 0; i < this.composite.length; i++) {
 			String suffix = i == 0 ? "" : Integer.toString(i);
 
-			this.composite[i] = readProgramSource(root, "composite" + suffix, this);
+			this.composite[i] = readProgramSource(root, "composite" + suffix, this, shaderProperties);
 		}
 
-		this.compositeFinal = readProgramSource(root, "final", this);
+		this.compositeFinal = readProgramSource(root, "final", this, shaderProperties);
 
 		this.idMap = new IdMap(root);
 		this.langMap = parseLangEntries(root);
+
+		this.shaderProperties = shaderProperties;
+	}
+
+	// TODO: Copy-paste from IdMap, find a way to deduplicate this
+	private static Optional<Properties> loadProperties(Path shaderPath, String name) {
+		Properties properties = new Properties();
+
+		try {
+			properties.load(Files.newInputStream(shaderPath.resolve(name)));
+		} catch (IOException e) {
+			Iris.logger.debug("An " + name + " file was not found in the current shaderpack");
+
+			return Optional.empty();
+		}
+
+		return Optional.of(properties);
 	}
 
 	public IdMap getIdMap() {
@@ -66,6 +106,10 @@ public class ShaderPack {
 
 	public Optional<ProgramSource> getGbuffersBasic() {
 		return gbuffersBasic.requireValid();
+	}
+
+	public Optional<ProgramSource> getGbuffersBeaconBeam() {
+		return gbuffersBeaconBeam.requireValid();
 	}
 
 	public Optional<ProgramSource> getGbuffersTextured() {
@@ -78,6 +122,14 @@ public class ShaderPack {
 
 	public Optional<ProgramSource> getGbuffersTerrain() {
 		return gbuffersTerrain.requireValid();
+	}
+
+	public Optional<ProgramSource> getShadow() {
+		return shadow.requireValid();
+	}
+
+	public Optional<ProgramSource> getGbuffersDamagedBlock() {
+		return gbuffersDamagedBlock.requireValid();
 	}
 
 	public Optional<ProgramSource> getGbuffersWater() {
@@ -100,6 +152,14 @@ public class ShaderPack {
 		return gbuffersEntities.requireValid();
 	}
 
+	public Optional<ProgramSource> getGbuffersGlint() {
+		return gbuffersGlint.requireValid();
+	}
+
+	public Optional<ProgramSource> getGbuffersEntityEyes() {
+		return gbuffersEntityEyes.requireValid();
+	}
+
 	public Optional<ProgramSource> getGbuffersBlock() {
 		return gbuffersBlock.requireValid();
 	}
@@ -120,7 +180,11 @@ public class ShaderPack {
 		return packDirectives;
 	}
 
-	private static ProgramSource readProgramSource(Path root, String program, ShaderPack pack) throws IOException {
+	public Properties getShaderProperties() {
+		return this.shaderProperties.asProperties();
+	}
+
+	private static ProgramSource readProgramSource(Path root, String program, ShaderPack pack, ShaderProperties properties) throws IOException {
 		String vertexSource = null;
 		String fragmentSource = null;
 
@@ -148,7 +212,7 @@ public class ShaderPack {
 			throw e;
 		}
 
-		return new ProgramSource(program, vertexSource, fragmentSource, pack);
+		return new ProgramSource(program, vertexSource, fragmentSource, pack, properties);
 	}
 
 	private static String readFile(Path path) throws IOException {
@@ -201,12 +265,12 @@ public class ShaderPack {
 		private final ProgramDirectives directives;
 		private final ShaderPack parent;
 
-		public ProgramSource(String name, String vertexSource, String fragmentSource, ShaderPack parent) {
+		public ProgramSource(String name, String vertexSource, String fragmentSource, ShaderPack parent, ShaderProperties properties) {
 			this.name = name;
 			this.vertexSource = vertexSource;
 			this.fragmentSource = fragmentSource;
 			this.parent = parent;
-			this.directives = new ProgramDirectives(this);
+			this.directives = new ProgramDirectives(this, properties);
 		}
 
 		public String getName() {

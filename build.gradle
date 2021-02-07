@@ -26,6 +26,9 @@ dependencies {
 
 	// Required by fabric-lifecycle-events-v1
 	includeFabricApiModule "fabric-api-base"
+
+	// Config screen integration
+	modApi "io.github.prospector:modmenu:1.14.13+build.22"
 }
 
 def includeFabricApiModule(String moduleName) {
@@ -65,7 +68,9 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 }
-
+loom {
+	accessWidener "src/main/resources/iris.accesswidener"
+}
 jar {
 	from("LICENSE") {
 		rename { "${it}_${project.archivesBaseName}"}

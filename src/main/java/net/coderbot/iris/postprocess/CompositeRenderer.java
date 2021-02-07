@@ -12,17 +12,21 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.coderbot.iris.gl.framebuffer.GlFramebuffer;
 import net.coderbot.iris.gl.program.Program;
 import net.coderbot.iris.gl.program.ProgramBuilder;
+import net.coderbot.iris.pipeline.ShaderPipeline;
 import net.coderbot.iris.rendertarget.FramebufferBlitter;
 import net.coderbot.iris.rendertarget.NoiseTexture;
 import net.coderbot.iris.rendertarget.RenderTarget;
 import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.shaderpack.ProgramDirectives;
 import net.coderbot.iris.shaderpack.ShaderPack;
+import net.coderbot.iris.uniforms.CapturedRenderingState;
 import net.coderbot.iris.uniforms.CommonUniforms;
 import org.lwjgl.opengl.GL15C;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
+import net.minecraft.client.render.Camera;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.Pair;
 
 public class CompositeRenderer {
@@ -31,8 +35,9 @@ public class CompositeRenderer {
 	private final ImmutableList<Pass> passes;
 	private final GlFramebuffer baseline;
 	private final NoiseTexture noisetex;
-
-	final CenterDepthSampler centerDepthSampler;
+	Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+	MinecraftClient client = MinecraftClient.getInstance();
+	static CenterDepthSampler centerDepthSampler;
 
 	public CompositeRenderer(ShaderPack pack, RenderTargets renderTargets) {
 		centerDepthSampler = new CenterDepthSampler(renderTargets);
@@ -119,6 +124,7 @@ public class CompositeRenderer {
 
 		int depthAttachment = renderTargets.getDepthTexture().getTextureId();
 		int depthAttachmentNoTranslucents = renderTargets.getDepthTextureNoTranslucents().getTextureId();
+		int shadowAttachment = renderTargets.getShadowTexture().getTextureId();
 
 		for (Pass renderPass : passes) {
 			if (!renderPass.isLastPass) {
@@ -130,6 +136,10 @@ public class CompositeRenderer {
 			// TODO: Consider copying the depth texture content into a separate texture that won't be modified? Probably
 			// isn't an issue though.
 			bindTexture(PostProcessUniforms.DEPTH_TEX_0, depthAttachment);
+			bindTexture(PostProcessUniforms.SHADOW_TEX_0, shadowAttachment);//NoTranslucents);
+			bindTexture(PostProcessUniforms.SHADOW_TEX_1, shadowAttachment);//NoTranslucents);
+			bindTexture(PostProcessUniforms.SHADOW_COLOR_0, shadowAttachment);//NoTranslucents);
+			bindTexture(PostProcessUniforms.SHADOW_COLOR_1, shadowAttachment);//NoTranslucents);
 			// TODO: No translucent objects
 			bindTexture(PostProcessUniforms.DEPTH_TEX_1, depthAttachmentNoTranslucents);
 			// Note: Since we haven't rendered the hand yet, this won't contain any handheld items.
@@ -146,7 +156,11 @@ public class CompositeRenderer {
 			bindRenderTarget(PostProcessUniforms.COLOR_TEX_7, renderTargets.get(7), renderPass.stageReadsFromAlt[7]);
 
 			bindTexture(PostProcessUniforms.NOISE_TEX, noisetex.getTextureId());
-
+			try {
+				camera.update(client.world, (Entity)(client.getCameraEntity() == null ? client.player : client.getCameraEntity()), true, client.options.getPerspective().isFrontView(), CapturedRenderingState.INSTANCE.getTickDelta());
+			} catch (NullPointerException e) {
+				e.printStackTrace();
+			}
 			float scaledWidth = main.textureWidth * renderPass.viewportScale;
 			float scaledHeight = main.textureHeight * renderPass.viewportScale;
 			RenderSystem.viewport(0, 0, (int) scaledWidth, (int) scaledHeight);
@@ -162,6 +176,7 @@ public class CompositeRenderer {
 			// Thus, the following call transfers the content of colortex0 and the depth buffer into the main Minecraft
 			// framebuffer.
 			FramebufferBlitter.copyFramebufferContent(this.baseline, main);
+			//FramebufferBlitter.copyFramebufferContent(ShaderPipeline.);
 		}
 
 		// Make sure to reset the viewport to how it was before... Otherwise weird issues could occur.
@@ -173,6 +188,10 @@ public class CompositeRenderer {
 		RenderSystem.activeTexture(GL15C.GL_TEXTURE0 + PostProcessUniforms.DEFAULT_DEPTH);
 		RenderSystem.bindTexture(0);
 		RenderSystem.activeTexture(GL15C.GL_TEXTURE0 + PostProcessUniforms.DEFAULT_COLOR);
+		RenderSystem.bindTexture(0);
+		RenderSystem.activeTexture(GL15C.GL_TEXTURE0 + PostProcessUniforms.SHADOW_TEX_0);
+		RenderSystem.bindTexture(0);
+		RenderSystem.activeTexture(GL15C.GL_TEXTURE1 + PostProcessUniforms.SHADOW_TEX_1);
 		RenderSystem.bindTexture(0);
 	}
 

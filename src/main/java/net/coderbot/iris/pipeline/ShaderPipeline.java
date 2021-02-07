@@ -7,14 +7,18 @@ import java.util.Set;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.coderbot.iris.Iris;
 import net.coderbot.iris.gl.framebuffer.GlFramebuffer;
 import net.coderbot.iris.gl.program.Program;
 import net.coderbot.iris.gl.program.ProgramBuilder;
+import net.coderbot.iris.layer.GbufferProgram;
+import net.coderbot.iris.postprocess.PostProcessUniforms;
 import net.coderbot.iris.rendertarget.NoiseTexture;
 import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.shaderpack.ShaderPack;
 import net.coderbot.iris.uniforms.CommonUniforms;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL20;
@@ -47,13 +51,31 @@ public class ShaderPipeline {
 	@Nullable
 	private final Pass terrain;
 	@Nullable
+	public static Pass shadow;
+	@Nullable
 	private final Pass translucent;
 	@Nullable
+	private final Pass damagedBlock;
+	@Nullable
 	private final Pass weather;
+	@Nullable
+	private final Pass beaconBeam;
+	@Nullable
+	private final Pass entities;
+	@Nullable
+	private final Pass blockEntities;
+	@Nullable
+	private final Pass glowingEntities;
+	@Nullable
+	private final Pass glint;
+	@Nullable
+	private final Pass eyes;
 
 	private final GlFramebuffer clearAltBuffers;
 	private final GlFramebuffer clearMainBuffers;
 	private final GlFramebuffer baseline;
+	public static GlFramebuffer shadowframe;
+	public static ProgramBuilder builder;
 
 	private final NoiseTexture noiseTexture;
 	private final int waterId;
@@ -69,24 +91,105 @@ public class ShaderPipeline {
 		this.skyTextured = pack.getGbuffersSkyTextured().map(this::createPass).orElse(textured);
 		this.clouds = pack.getGbuffersClouds().map(this::createPass).orElse(textured);
 		this.terrain = pack.getGbuffersTerrain().map(this::createPass).orElse(texturedLit);
+		this.shadow = pack.getShadow().map(this::createPass).orElse(texturedLit);
 		this.translucent = pack.getGbuffersWater().map(this::createPass).orElse(terrain);
+		this.damagedBlock = pack.getGbuffersDamagedBlock().map(this::createPass).orElse(terrain);
 		// TODO: Load weather shaders
 		this.weather = texturedLit;
+		this.beaconBeam = pack.getGbuffersBeaconBeam().map(this::createPass).orElse(textured);
+		this.entities = pack.getGbuffersEntities().map(this::createPass).orElse(texturedLit);
+		this.blockEntities = pack.getGbuffersBlock().map(this::createPass).orElse(terrain);
+		// TODO: Load glowing entities
+		this.glowingEntities = entities;
+		this.glint = pack.getGbuffersGlint().map(this::createPass).orElse(textured);
+		this.eyes = pack.getGbuffersEntityEyes().map(this::createPass).orElse(textured);
 
 		int[] buffersToBeCleared = pack.getPackDirectives().getBuffersToBeCleared().toIntArray();
 
 		this.clearAltBuffers = renderTargets.createFramebufferWritingToAlt(buffersToBeCleared);
 		this.clearMainBuffers = renderTargets.createFramebufferWritingToMain(buffersToBeCleared);
 		this.baseline = renderTargets.createFramebufferWritingToMain(new int[] {0});
-
+		this.shadowframe = renderTargets.createFramebufferWritingToMain(new int[] {0});
 		this.noiseTexture = new NoiseTexture(128, 128);
+	}
+
+	public void useProgram(GbufferProgram program) {
+		if (!isRenderingWorld) {
+			// don't mess with non-world rendering
+			return;
+		}
+
+		switch (program) {
+			case SHADOW:
+				//RenderSystem.enableAlphaTest();
+				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
+				beginShadow();
+				return;
+			case TERRAIN:
+				//RenderSystem.enableAlphaTest();
+				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
+				beginTerrain();
+				return;
+			case TRANSLUCENT_TERRAIN:
+				beginTranslucentTerrain();
+				return;
+			case DAMAGED_BLOCKS:
+				beginPass(damagedBlock);
+				return;
+			case BASIC:
+				RenderSystem.enableAlphaTest();
+				RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
+				beginBasic();
+				return;
+			case BEACON_BEAM:
+				beginPass(beaconBeam);
+				return;
+			case ENTITIES:
+				// TODO: Disabling blend on entities is hardcoded for Sildur's
+				//GlStateManager.disableBlend();
+				//RenderSystem.enableAlphaTest();
+				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
+				beginPass(entities);
+				return;
+			case BLOCK_ENTITIES:
+				beginPass(blockEntities);
+				return;
+			case ENTITIES_GLOWING:
+				// TODO: Disabling blend on entities is hardcoded for Sildur's
+				//GlStateManager.disableBlend();
+				//RenderSystem.enableAlphaTest();
+				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
+				beginPass(glowingEntities);
+				return;
+			case EYES:
+				beginPass(eyes);
+				return;
+			case ARMOR_GLINT:
+				beginPass(glint);
+				return;
+		}
+
+		// TODO
+		throw new UnsupportedOperationException("TODO");
+	}
+
+	public boolean shouldDisableVanillaEntityShadows() {
+		// TODO: Don't hardcode this for Sildur's
+		// OptiFine seems to disable vanilla shadows when the shaderpack uses shadow mapping?
+		return true;
+	}
+
+	private void beginPass(Pass pass) {
+		if (pass != null) {
+			pass.use();
+		}
 	}
 
 	private Pass createPass(ShaderPack.ProgramSource source) {
 		// TODO: Properly handle empty shaders
 		Objects.requireNonNull(source.getVertexSource());
 		Objects.requireNonNull(source.getFragmentSource());
-		ProgramBuilder builder;
+
 
 		try {
 			builder = ProgramBuilder.begin(source.getName(), source.getVertexSource().orElse(null),
@@ -99,9 +202,13 @@ public class ShaderPipeline {
 		CommonUniforms.addCommonUniforms(builder, source.getParent().getIdMap());
 		GlFramebuffer framebuffer = renderTargets.createFramebufferWritingToMain(source.getDirectives().getDrawBuffers());
 
+		builder.bindAttributeLocation(10, "mc_Entity");
+		builder.bindAttributeLocation(11, "mc_midTexCoord");
+		builder.bindAttributeLocation(12, "at_tangent");
+
 		return new Pass(builder.build(), framebuffer);
 	}
-	
+
 	private final class Pass {
 		private final Program program;
 		private final GlFramebuffer framebuffer;
@@ -110,7 +217,7 @@ public class ShaderPipeline {
 			this.program = program;
 			this.framebuffer = framebuffer;
 		}
-		
+
 		public void use() {
 			// TODO: Binding the texture here is ugly and hacky. It would be better to have a utility function to set up
 			// a given program and bind the required textures instead.
@@ -132,10 +239,11 @@ public class ShaderPipeline {
 	}
 
 	public void destroy() {
-		destroyPasses(basic, textured, texturedLit, skyBasic, skyTextured, clouds, terrain, translucent, weather);
+		destroyPasses(basic, textured, texturedLit, skyBasic, skyTextured, clouds, terrain, translucent, weather, shadow);
 		clearAltBuffers.destroy();
 		clearMainBuffers.destroy();
 		baseline.destroy();
+		shadowframe.destroy();
 		noiseTexture.destroy();
 	}
 
@@ -156,7 +264,16 @@ public class ShaderPipeline {
 		}
 	}
 
-	private void end() {
+	public void end() {
+		if (!isRenderingWorld) {
+			// don't mess with non-world rendering
+			return;
+		}
+
+		// Disable any alpha func shenanigans
+		RenderSystem.disableAlphaTest();
+		RenderSystem.defaultAlphaFunc();
+
 		if (this.basic == null) {
 			GlProgramManager.useProgram(0);
 			this.baseline.bind();
@@ -164,6 +281,8 @@ public class ShaderPipeline {
 			return;
 		}
 
+		// Default to gbuffers_basic for unrecognized render layers
+		// TODO: Potentially use gbuffers_textured or gbuffers_textured_lit appropriately?
 		this.basic.use();
 	}
 
@@ -172,8 +291,6 @@ public class ShaderPipeline {
 
 		float blockId = -1.0F;
 
-		// TODO: We don't ever bind these attributes to an explicit location. AMD drivers are a bit flaky with automatic
-		// location assignment, so that might be something good to pursue in the future.
 		setupAttribute(pass, "mc_Entity", blockId, -1.0F, -1.0F, -1.0F);
 		setupAttribute(pass, "mc_midTexCoord", 0.0F, 0.0F, 0.0F, 0.0F);
 		setupAttribute(pass, "at_tangent", 1.0F, 0.0F, 0.0F, 1.0F);
@@ -200,13 +317,15 @@ public class ShaderPipeline {
 		RenderSystem.clearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		RenderSystem.clear(GL11C.GL_COLOR_BUFFER_BIT, MinecraftClient.IS_SYSTEM_MAC);
 
-		clearMainBuffers.bind();
+		// We only want the vanilla clear color to be applied to colortex0
+		baseline.bind();
 	}
 
 	public void copyCurrentDepthTexture() {
 		baseline.bind();
 		GlStateManager.bindTexture(renderTargets.getDepthTextureNoTranslucents().getTextureId());
 		GL20C.glCopyTexImage2D(GL20C.GL_TEXTURE_2D, 0, GL20C.GL_DEPTH_COMPONENT, 0, 0, renderTargets.getCurrentWidth(), renderTargets.getCurrentHeight(), 0);
+		//Iris.logger.warn("texwid" + renderTargets.getCurrentHeight() + renderTargets.getCurrentWidth());
 	}
 
 	public void beginClouds() {
@@ -221,30 +340,50 @@ public class ShaderPipeline {
 		end();
 	}
 
-	public void beginTerrainLayer(RenderLayer terrainLayer) {
-		if (terrainLayer == RenderLayer.getTranslucent() || terrainLayer == RenderLayer.getTripwire()) {
-			if (translucent == null) {
-				return;
-			}
-
-			translucent.use();
-			setupAttributes(translucent);
-
-			// TODO: This is just making it so that all translucent content renders like water. We need to properly support
-			// mc_Entity!
-			setupAttribute(translucent, "mc_Entity", waterId, -1.0F, -1.0F, -1.0F);
-		} else if (terrainLayer == RenderLayer.getSolid() || terrainLayer == RenderLayer.getCutout() || terrainLayer == RenderLayer.getCutoutMipped()) {
-			if (terrain == null) {
-				return;
-			}
-
-			terrain.use();
-			setupAttributes(terrain);
+	public void beginTerrain() {
+		if (terrain == null) {
+			return;
 		}
+
+		// TODO: Don't disable blend normally, this is hardcoding for Sildur's
+		//GlStateManager.disableBlend();
+		terrain.use();
+		setupAttributes(terrain);
 	}
 
-	public void endTerrainLayer(RenderLayer terrainLayer) {
-		end();
+	public void beginShadow() {
+		if (shadow == null) {
+			return;
+		}
+
+		// TODO: Don't disable blend normally, this is hardcoding for Sildur's
+		//GlStateManager.disableBlend();
+		shadowframe.bind();
+		shadow.use();
+		RenderSystem.activeTexture(GL15C.GL_TEXTURE0 + PostProcessUniforms.SHADOW_TEX_0);
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		RenderSystem.activeTexture(GL15C.GL_TEXTURE1 + PostProcessUniforms.SHADOW_TEX_1);
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		RenderSystem.activeTexture(GL15C.GL_TEXTURE2 + PostProcessUniforms.SHADOW_COLOR_0);
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		RenderSystem.activeTexture(GL15C.GL_TEXTURE3 + PostProcessUniforms.SHADOW_COLOR_1);
+		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
+		setupAttributes(shadow);
+	}
+	public void endShadow() {
+		//end();
+	}
+	public void beginTranslucentTerrain() {
+		if (translucent == null) {
+			return;
+		}
+
+		translucent.use();
+		setupAttributes(translucent);
+
+		// TODO: This is just making it so that all translucent content renders like water. We need to properly support
+		// mc_Entity!
+		setupAttribute(translucent, "mc_Entity", waterId, -1.0F, -1.0F, -1.0F);
 	}
 
 	public void beginSky() {
@@ -299,29 +438,14 @@ public class ShaderPipeline {
 		end();
 	}
 
-	public void beginImmediateDrawing(RenderLayer layer) {
-		if (!isRenderingWorld) {
-			// don't mess with non-world rendering
+	public void beginBasic() {
+		if (basic == null) {
 			return;
 		}
 
-		if (texturedLit == null) {
-			return;
-		}
-
-		texturedLit.use();
-		if ((layer.isOutline() || layer == RenderLayer.getLines()) && basic != null) {
-			basic.use();
-		}
-	}
-
-	public void endImmediateDrawing() {
-		if (!isRenderingWorld) {
-			// don't mess with non-world rendering
-			return;
-		}
-
-		end();
+		// TODO: This is hardcoded for Sildur's, we shouldn't disable blend normally
+		GlStateManager.disableBlend();
+		basic.use();
 	}
 
 	public void beginParticleSheet(ParticleTextureSheet sheet) {
