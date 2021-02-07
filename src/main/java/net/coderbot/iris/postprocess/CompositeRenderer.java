@@ -124,7 +124,7 @@ public class CompositeRenderer {
 
 		int depthAttachment = renderTargets.getDepthTexture().getTextureId();
 		int depthAttachmentNoTranslucents = renderTargets.getDepthTextureNoTranslucents().getTextureId();
-		int shadowAttachment = renderTargets.getShadowTexture().getTextureId();
+//		int shadowAttachment = renderTargets.getShadowTexture().getTextureId();
 
 		for (Pass renderPass : passes) {
 			if (!renderPass.isLastPass) {
@@ -136,10 +136,10 @@ public class CompositeRenderer {
 			// TODO: Consider copying the depth texture content into a separate texture that won't be modified? Probably
 			// isn't an issue though.
 			bindTexture(PostProcessUniforms.DEPTH_TEX_0, depthAttachment);
-			bindTexture(PostProcessUniforms.SHADOW_TEX_0, shadowAttachment);//NoTranslucents);
-			bindTexture(PostProcessUniforms.SHADOW_TEX_1, shadowAttachment);//NoTranslucents);
-			bindTexture(PostProcessUniforms.SHADOW_COLOR_0, shadowAttachment);//NoTranslucents);
-			bindTexture(PostProcessUniforms.SHADOW_COLOR_1, shadowAttachment);//NoTranslucents);
+			//bindTexture(PostProcessUniforms.SHADOW_TEX_0, shadowAttachment);//NoTranslucents);
+		//	bindTexture(PostProcessUniforms.SHADOW_TEX_1, shadowAttachment);//NoTranslucents);
+		//	bindTexture(PostProcessUniforms.SHADOW_COLOR_0, shadowAttachment);//NoTranslucents);
+		//	bindTexture(PostProcessUniforms.SHADOW_COLOR_1, shadowAttachment);//NoTranslucents);
 			// TODO: No translucent objects
 			bindTexture(PostProcessUniforms.DEPTH_TEX_1, depthAttachmentNoTranslucents);
 			// Note: Since we haven't rendered the hand yet, this won't contain any handheld items.

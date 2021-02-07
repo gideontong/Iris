@@ -34,7 +34,7 @@ public class ShadowProject {
 		//((InvokerCamera) camera).posSet(new Vec3d(x, y, z));
 
 		//((InvokerCamera) camera).posSet(new Vec3d(camera.getPos().x, camera.getPos().y + 20, camera.getPos().z));
-		Iris.logger.warn("camera pos: " + camera.getPos());
+		//Iris.logger.warn("camera pos: " + camera.getPos());
 		//ShaderPipeline.shadowframe.bind();
 		//ShaderPipeline.shadowframe.addDepthAttachment(SHADOW_TEX_0); this causes crash when reloading???
 		MinecraftClient client = MinecraftClient.getInstance();
