@@ -25,7 +25,7 @@ public class ShadowProject {
 	public static Camera getCamera() {
 		return camera2;
 	}
-	public static void idk() {
+	public static void setupSecondCamera() {
 		float x = CelestialUniforms.getShadowLightPosition().getX();
 		float y = CelestialUniforms.getShadowLightPosition().getY();
 		float z = CelestialUniforms.getShadowLightPosition().getZ();

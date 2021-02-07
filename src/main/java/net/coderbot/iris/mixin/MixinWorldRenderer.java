@@ -7,7 +7,6 @@ import net.coderbot.iris.Iris;
 import net.coderbot.iris.ShadowProject;
 import net.coderbot.iris.layer.GbufferProgram;
 import net.coderbot.iris.layer.GbufferPrograms;
-import net.coderbot.iris.pipeline.ShaderPipeline;
 import net.coderbot.iris.uniforms.CapturedRenderingState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -54,7 +53,7 @@ public class MixinWorldRenderer {
 		CapturedRenderingState.INSTANCE.setGbufferModelView(matrices.peek().getModel());
 		CapturedRenderingState.INSTANCE.setGbufferProjection(gameRenderer.getBasicProjectionMatrix(camera, tickDelta, true));
 		CapturedRenderingState.INSTANCE.setTickDelta(tickDelta);
-		ShadowProject.idk();
+		ShadowProject.setupSecondCamera();
 		Iris.getPipeline().beginWorldRender();
 		GbufferPrograms.useProgram(GbufferProgram.SHADOW);
 		//Iris.getPipeline().beginShadow();
