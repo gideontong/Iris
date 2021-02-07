@@ -4,6 +4,7 @@ import static net.coderbot.iris.postprocess.PostProcessUniformsRest.SHADOW_TEX_0
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import net.coderbot.iris.gl.framebuffer.GlFramebuffer;
+import net.coderbot.iris.mixin.InvokerCamera;
 import net.coderbot.iris.pipeline.ShaderPipeline;
 import net.coderbot.iris.uniforms.CapturedRenderingState;
 import net.coderbot.iris.uniforms.CelestialUniforms;
@@ -16,7 +17,8 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.util.math.Vec3d;
 
 public class ShadowProject {
-	public static CameraNew camera2 = new CameraNew();
+	public static Camera camera2 = new Camera();
+	public static Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
 	float x = CelestialUniforms.getShadowLightPosition().getX();
 	float y = CelestialUniforms.getShadowLightPosition().getY();
 	float z = CelestialUniforms.getShadowLightPosition().getZ();
@@ -27,12 +29,17 @@ public class ShadowProject {
 		float x = CelestialUniforms.getShadowLightPosition().getX();
 		float y = CelestialUniforms.getShadowLightPosition().getY();
 		float z = CelestialUniforms.getShadowLightPosition().getZ();
-		camera2.setPosi(new Vec3d(x, y, z));
+		//camera2.setPosi(new Vec3d(x, y, z));
+		((InvokerCamera) camera2).posSet(new Vec3d(x, y, z));
+		//((InvokerCamera) camera).posSet(new Vec3d(x, y, z));
+
+		//((InvokerCamera) camera).posSet(new Vec3d(camera.getPos().x, camera.getPos().y + 20, camera.getPos().z));
+		Iris.logger.warn("camera pos: " + camera.getPos());
 		//ShaderPipeline.shadowframe.bind();
 		//ShaderPipeline.shadowframe.addDepthAttachment(SHADOW_TEX_0); this causes crash when reloading???
 		MinecraftClient client = MinecraftClient.getInstance();
 		WorldRenderer worldRenderer = new WorldRenderer(client, client.getBufferBuilders());
-		camera2.setPosi(new Vec3d(x, y, z));
+
 		//worldRenderer.
 		//camera2.
 		//getCamera().setPos(new Vec3d(1, 1, 1));

@@ -43,7 +43,7 @@ public class RenderTargets {
 
 		this.depthTexture = new DepthTexture(width, height);
 		this.noTranslucents = new DepthTexture(width, height);
-		this.shadowTexture = new DepthTexture(width, height);
+		this.shadowTexture = new DepthTexture(4096, 4096);
 
 		this.cachedWidth = width;
 		this.cachedHeight = height;

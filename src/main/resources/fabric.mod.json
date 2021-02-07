@@ -13,7 +13,6 @@
     "sources": "https://github.com/IrisShaders/Iris.git",
     "issues": "https://github.com/IrisShaders/Iris/issues"
   },
-  "accessWidener" : "iris.accesswidener",
   "license": "LGPL-3.0-only",
   "icon": "assets/iris/iris-logo.png",
 

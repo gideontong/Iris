@@ -371,7 +371,7 @@ public class ShaderPipeline {
 		setupAttributes(shadow);
 	}
 	public void endShadow() {
-		//end();
+		end();
 	}
 	public void beginTranslucentTerrain() {
 		if (translucent == null) {

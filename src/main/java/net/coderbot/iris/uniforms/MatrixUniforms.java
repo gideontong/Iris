@@ -15,7 +15,7 @@ public final class MatrixUniforms {
 	public static void addMatrixUniforms(UniformHolder uniforms) {
 		addMatrix(uniforms, "ModelView", CapturedRenderingState.INSTANCE::getGbufferModelView);
 		addMatrix(uniforms, "Projection", CapturedRenderingState.INSTANCE::getGbufferProjection);
-		addMatrixShadow(uniforms, "ModelView", CapturedRenderingState.INSTANCE::getGbufferModelView);
+		addMatrixShadow(uniforms, "ModelView", CapturedRenderingState.INSTANCE::getShadowModelView);
 		addMatrixShadow(uniforms, "Projection", CapturedRenderingState.INSTANCE::getShadowProjection);
 	}
 

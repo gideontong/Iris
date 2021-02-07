@@ -10,6 +10,7 @@ import net.coderbot.iris.layer.GbufferPrograms;
 import net.coderbot.iris.pipeline.ShaderPipeline;
 import net.coderbot.iris.uniforms.CapturedRenderingState;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Slice;
@@ -21,6 +22,8 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.util.math.Vector3f;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.Matrix4f;
 
 import net.fabricmc.api.EnvType;
@@ -34,17 +37,29 @@ public class MixinWorldRenderer {
 	private static final String RENDER_LAYER = "renderLayer(Lnet/minecraft/client/render/RenderLayer;Lnet/minecraft/client/util/math/MatrixStack;DDD)V";
 	private static final String RENDER_CLOUDS = "renderClouds(Lnet/minecraft/client/util/math/MatrixStack;FDDD)V";
 
+	@Shadow
+	private ClientWorld world;
+
 	@Inject(method = RENDER, at = @At("HEAD"))
 	private void iris$beginWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
+		matrices.push();
+		matrices.multiply(Vector3f.POSITIVE_Y.getDegreesQuaternion(-90.0F));
+		matrices.multiply(Vector3f.POSITIVE_X.getDegreesQuaternion(this.world.getSkyAngle(tickDelta) * 360.0F));
+		matrices.translate(0, 100, 0);
+		CapturedRenderingState.INSTANCE.setShadowModelView(matrices.peek().getModel());
+		Matrix4f projectshadow = gameRenderer.getBasicProjectionMatrix(camera2, tickDelta, true);
+
+		CapturedRenderingState.INSTANCE.setShadowProjection(Matrix4f.projectionMatrix(1, 1, 0, 0));
+		matrices.pop();
 		CapturedRenderingState.INSTANCE.setGbufferModelView(matrices.peek().getModel());
 		CapturedRenderingState.INSTANCE.setGbufferProjection(gameRenderer.getBasicProjectionMatrix(camera, tickDelta, true));
 		CapturedRenderingState.INSTANCE.setTickDelta(tickDelta);
 		ShadowProject.idk();
-		CapturedRenderingState.INSTANCE.setShadowProjection(gameRenderer.getBasicProjectionMatrix(camera2, tickDelta, true));
+		Iris.getPipeline().beginWorldRender();
 		GbufferPrograms.useProgram(GbufferProgram.SHADOW);
 		//Iris.getPipeline().beginShadow();
 		Iris.getPipeline().endShadow();
-		Iris.getPipeline().beginWorldRender();
+
 	}
 
 	@Inject(method = RENDER, at = @At("RETURN"))
