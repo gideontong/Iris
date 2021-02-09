@@ -1,24 +1,21 @@
 package net.coderbot.iris.pipeline;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.coderbot.iris.Iris;
+import net.coderbot.iris.gl.blending.AlphaTestOverride;
 import net.coderbot.iris.gl.framebuffer.GlFramebuffer;
 import net.coderbot.iris.gl.program.Program;
 import net.coderbot.iris.gl.program.ProgramBuilder;
 import net.coderbot.iris.layer.GbufferProgram;
-import net.coderbot.iris.postprocess.PostProcessUniforms;
 import net.coderbot.iris.rendertarget.NoiseTexture;
 import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.shaderpack.ShaderPack;
 import net.coderbot.iris.uniforms.CommonUniforms;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL20;
@@ -28,7 +25,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gl.GlProgramManager;
 import net.minecraft.client.particle.ParticleTextureSheet;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.util.Identifier;
 
 /**
@@ -36,6 +32,8 @@ import net.minecraft.util.Identifier;
  */
 public class ShaderPipeline {
 	private final RenderTargets renderTargets;
+	@Nullable
+	private final Pass shadow;
 	@Nullable
 	private final Pass basic;
 	@Nullable
@@ -50,8 +48,6 @@ public class ShaderPipeline {
 	private final Pass clouds;
 	@Nullable
 	private final Pass terrain;
-	@Nullable
-	public static Pass shadow;
 	@Nullable
 	private final Pass translucent;
 	@Nullable
@@ -73,17 +69,19 @@ public class ShaderPipeline {
 
 	private final GlFramebuffer clearAltBuffers;
 	private final GlFramebuffer clearMainBuffers;
-	private final GlFramebuffer baseline;
+	public static GlFramebuffer baseline;
 	public static GlFramebuffer shadowframe;
-	public static ProgramBuilder builder;
-
+	public static boolean frustumOff;
 	private final NoiseTexture noiseTexture;
 	private final int waterId;
-
+	public static ProgramBuilder builder;
+	private static final List<GbufferProgram> programStack = new ArrayList<>();
+	private static final List<String> programStackLog = new ArrayList<>();
+	private final float halfShadowMapPlane = 160.0F;
+	private static int stuff = 0;
 	public ShaderPipeline(ShaderPack pack, RenderTargets renderTargets) {
 		this.renderTargets = renderTargets;
 		waterId = pack.getIdMap().getBlockProperties().getOrDefault(new Identifier("minecraft", "water"), -1);
-
 		this.basic = pack.getGbuffersBasic().map(this::createPass).orElse(null);
 		this.textured = pack.getGbuffersTextured().map(this::createPass).orElse(basic);
 		this.texturedLit = pack.getGbuffersTexturedLit().map(this::createPass).orElse(textured);
@@ -91,86 +89,143 @@ public class ShaderPipeline {
 		this.skyTextured = pack.getGbuffersSkyTextured().map(this::createPass).orElse(textured);
 		this.clouds = pack.getGbuffersClouds().map(this::createPass).orElse(textured);
 		this.terrain = pack.getGbuffersTerrain().map(this::createPass).orElse(texturedLit);
-		this.shadow = pack.getShadow().map(this::createPass).orElse(texturedLit);
 		this.translucent = pack.getGbuffersWater().map(this::createPass).orElse(terrain);
+		this.shadow = pack.getShadow().map(this::createPass).orElse(basic);
 		this.damagedBlock = pack.getGbuffersDamagedBlock().map(this::createPass).orElse(terrain);
-		// TODO: Load weather shaders
-		this.weather = texturedLit;
+		this.weather = pack.getGbuffersWeather().map(this::createPass).orElse(texturedLit);
 		this.beaconBeam = pack.getGbuffersBeaconBeam().map(this::createPass).orElse(textured);
 		this.entities = pack.getGbuffersEntities().map(this::createPass).orElse(texturedLit);
 		this.blockEntities = pack.getGbuffersBlock().map(this::createPass).orElse(terrain);
-		// TODO: Load glowing entities
-		this.glowingEntities = entities;
+		this.glowingEntities = pack.getGbuffersEntitiesGlowing().map(this::createPass).orElse(entities);
 		this.glint = pack.getGbuffersGlint().map(this::createPass).orElse(textured);
 		this.eyes = pack.getGbuffersEntityEyes().map(this::createPass).orElse(textured);
-
 		int[] buffersToBeCleared = pack.getPackDirectives().getBuffersToBeCleared().toIntArray();
 
 		this.clearAltBuffers = renderTargets.createFramebufferWritingToAlt(buffersToBeCleared);
 		this.clearMainBuffers = renderTargets.createFramebufferWritingToMain(buffersToBeCleared);
 		this.baseline = renderTargets.createFramebufferWritingToMain(new int[] {0});
-		this.shadowframe = renderTargets.createFramebufferWritingToMain(new int[] {0});
+
 		this.noiseTexture = new NoiseTexture(128, 128);
 	}
 
-	public void useProgram(GbufferProgram program) {
+	public void pushProgram(GbufferProgram program) {
 		if (!isRenderingWorld) {
 			// don't mess with non-world rendering
 			return;
 		}
 
-		switch (program) {
-			case SHADOW:
-				//RenderSystem.enableAlphaTest();
-				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
-				beginShadow();
-				return;
-			case TERRAIN:
-				//RenderSystem.enableAlphaTest();
-				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
-				beginTerrain();
-				return;
-			case TRANSLUCENT_TERRAIN:
-				beginTranslucentTerrain();
-				return;
-			case DAMAGED_BLOCKS:
-				beginPass(damagedBlock);
-				return;
-			case BASIC:
-				RenderSystem.enableAlphaTest();
-				RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
-				beginBasic();
-				return;
-			case BEACON_BEAM:
-				beginPass(beaconBeam);
-				return;
-			case ENTITIES:
-				// TODO: Disabling blend on entities is hardcoded for Sildur's
-				//GlStateManager.disableBlend();
-				//RenderSystem.enableAlphaTest();
-				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
-				beginPass(entities);
-				return;
-			case BLOCK_ENTITIES:
-				beginPass(blockEntities);
-				return;
-			case ENTITIES_GLOWING:
-				// TODO: Disabling blend on entities is hardcoded for Sildur's
-				//GlStateManager.disableBlend();
-				//RenderSystem.enableAlphaTest();
-				//RenderSystem.alphaFunc(GL11.GL_GREATER, 0.1f);
-				beginPass(glowingEntities);
-				return;
-			case EYES:
-				beginPass(eyes);
-				return;
-			case ARMOR_GLINT:
-				beginPass(glint);
-				return;
+		programStack.add(program);
+		useProgram(program);
+		programStackLog.add("push:" + program);
+	}
+
+	public void popProgram(GbufferProgram expected) {
+		if (!isRenderingWorld) {
+			// don't mess with non-world rendering
+			return;
 		}
 
-		// TODO
-		throw new UnsupportedOperationException("TODO");
+		if (programStack.isEmpty()) {
+			Iris.logger.fatal("Tried to pop from an empty program stack!");
+			Iris.logger.fatal("Program stack log: " + programStackLog);
+			throw new IllegalStateException("Tried to pop from an empty program stack!");
+		}
+
+		// Equivalent to pop(), but a bit more verbose.
+		// This shouldn't have the same performance issues that remove() normally has since we're removing from the end
+		// every time.
+		GbufferProgram popped = programStack.remove(programStack.size() - 1);
+
+		if (popped != expected) {
+			Iris.logger.fatal("Program stack in invalid state, popped " + popped + " but expected to pop " + expected);
+			Iris.logger.fatal("Program stack content after pop: " + programStack);
+			throw new IllegalStateException("Program stack in invalid state, popped " + popped + " but expected to pop " + expected);
+		}
+
+		Pass poppedPass = getPass(popped);
+
+		if (poppedPass != null) {
+			poppedPass.stopUsing();
+		}
+
+		programStackLog.add("pop:" + popped);
+
+		if (programStack.isEmpty()) {
+			// No remaining program, use fixed-function rendering
+			teardownProgram();
+			return;
+		}
+
+		// Use the previous program
+		GbufferProgram toUse = programStack.get(programStack.size() - 1);
+
+		useProgram(toUse);
+	}
+
+	private Pass getPass(GbufferProgram program) {
+		switch (program) {
+		case SHADOW:
+			return shadow;
+			case TERRAIN:
+				return terrain;
+			case TRANSLUCENT_TERRAIN:
+				return translucent;
+			case DAMAGED_BLOCKS:
+				return damagedBlock;
+			case BASIC:
+				return basic;
+			case BEACON_BEAM:
+				return beaconBeam;
+			case ENTITIES:
+				return entities;
+			case BLOCK_ENTITIES:
+				return blockEntities;
+			case ENTITIES_GLOWING:
+				return glowingEntities;
+			case EYES:
+				return eyes;
+			case ARMOR_GLINT:
+				return glint;
+			case CLOUDS:
+				return clouds;
+			case SKY_BASIC:
+				return skyBasic;
+			case SKY_TEXTURED:
+				return skyTextured;
+			case TEXTURED_LIT:
+				return texturedLit;
+			case TEXTURED:
+				return textured;
+			case WEATHER:
+				return weather;
+			case HAND:
+			default:
+				// TODO
+				throw new UnsupportedOperationException("TODO: Unsupported gbuffer program: " + program);
+		}
+	}
+
+	private void useProgram(GbufferProgram program) {
+		beginPass(getPass(program));
+
+		if (program == GbufferProgram.TERRAIN) {
+			if (terrain != null) {
+				setupAttributes(terrain);
+			}
+		} else if (program == GbufferProgram.TRANSLUCENT_TERRAIN) {
+			if (translucent != null) {
+				setupAttributes(translucent);
+
+				// TODO: This is just making it so that all translucent content renders like water. We need to
+				// properly support mc_Entity!
+				setupAttribute(translucent, "mc_Entity", waterId, -1.0F, -1.0F, -1.0F);
+			}
+		}
+	}
+
+	private void teardownProgram() {
+		GlProgramManager.useProgram(0);
+		this.baseline.bind();
 	}
 
 	public boolean shouldDisableVanillaEntityShadows() {
@@ -182,6 +237,9 @@ public class ShaderPipeline {
 	private void beginPass(Pass pass) {
 		if (pass != null) {
 			pass.use();
+		} else {
+			GlProgramManager.useProgram(0);
+			this.baseline.bind();
 		}
 	}
 
@@ -206,16 +264,26 @@ public class ShaderPipeline {
 		builder.bindAttributeLocation(11, "mc_midTexCoord");
 		builder.bindAttributeLocation(12, "at_tangent");
 
-		return new Pass(builder.build(), framebuffer);
+		AlphaTestOverride alphaTestOverride = source.getDirectives().getAlphaTestOverride().orElse(null);
+
+		if (alphaTestOverride != null) {
+			Iris.logger.info("Configured alpha test override for " + source.getName() + ": " + alphaTestOverride);
+		}
+
+		return new Pass(builder.build(), framebuffer, alphaTestOverride, source.getDirectives().shouldDisableBlend());
 	}
 
 	private final class Pass {
 		private final Program program;
 		private final GlFramebuffer framebuffer;
+		private final AlphaTestOverride alphaTestOverride;
+		private final boolean disableBlend;
 
-		private Pass(Program program, GlFramebuffer framebuffer) {
+		private Pass(Program program, GlFramebuffer framebuffer, AlphaTestOverride alphaTestOverride, boolean disableBlend) {
 			this.program = program;
 			this.framebuffer = framebuffer;
+			this.alphaTestOverride = alphaTestOverride;
+			this.disableBlend = disableBlend;
 		}
 
 		public void use() {
@@ -226,6 +294,22 @@ public class ShaderPipeline {
 			GlStateManager.activeTexture(GL15C.GL_TEXTURE0);
 			framebuffer.bind();
 			program.use();
+
+			// TODO: Render layers will likely override alpha testing and blend state, perhaps we need a way to override
+			// that.
+			if (alphaTestOverride != null) {
+				alphaTestOverride.setup();
+			}
+
+			if (disableBlend) {
+				GlStateManager.disableBlend();
+			}
+		}
+
+		public void stopUsing() {
+			if (alphaTestOverride != null) {
+				AlphaTestOverride.teardown();
+			}
 		}
 
 		public Program getProgram() {
@@ -243,7 +327,6 @@ public class ShaderPipeline {
 		clearAltBuffers.destroy();
 		clearMainBuffers.destroy();
 		baseline.destroy();
-		shadowframe.destroy();
 		noiseTexture.destroy();
 	}
 
@@ -262,28 +345,6 @@ public class ShaderPipeline {
 			pass.destroy();
 			destroyed.add(pass);
 		}
-	}
-
-	public void end() {
-		if (!isRenderingWorld) {
-			// don't mess with non-world rendering
-			return;
-		}
-
-		// Disable any alpha func shenanigans
-		RenderSystem.disableAlphaTest();
-		RenderSystem.defaultAlphaFunc();
-
-		if (this.basic == null) {
-			GlProgramManager.useProgram(0);
-			this.baseline.bind();
-
-			return;
-		}
-
-		// Default to gbuffers_basic for unrecognized render layers
-		// TODO: Potentially use gbuffers_textured or gbuffers_textured_lit appropriately?
-		this.basic.use();
 	}
 
 	private static void setupAttributes(Pass pass) {
@@ -325,154 +386,21 @@ public class ShaderPipeline {
 		baseline.bind();
 		GlStateManager.bindTexture(renderTargets.getDepthTextureNoTranslucents().getTextureId());
 		GL20C.glCopyTexImage2D(GL20C.GL_TEXTURE_2D, 0, GL20C.GL_DEPTH_COMPONENT, 0, 0, renderTargets.getCurrentWidth(), renderTargets.getCurrentHeight(), 0);
-		//Iris.logger.warn("texwid" + renderTargets.getCurrentHeight() + renderTargets.getCurrentWidth());
 	}
 
-	public void beginClouds() {
-		if (clouds == null) {
-			return;
-		}
-
-		clouds.use();
-	}
-
-	public void endClouds() {
-		end();
-	}
-
-	public void beginTerrain() {
-		if (terrain == null) {
-			return;
-		}
-
-		// TODO: Don't disable blend normally, this is hardcoding for Sildur's
-		//GlStateManager.disableBlend();
-		terrain.use();
-		setupAttributes(terrain);
-	}
-
-	public void beginShadow() {
-		if (shadow == null) {
-			return;
-		}
-
-		// TODO: Don't disable blend normally, this is hardcoding for Sildur's
-		//GlStateManager.disableBlend();
-		shadowframe.bind();
-		shadow.use();
-		RenderSystem.activeTexture(GL15C.GL_TEXTURE0 + PostProcessUniforms.SHADOW_TEX_0);
-		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
-		RenderSystem.activeTexture(GL15C.GL_TEXTURE1 + PostProcessUniforms.SHADOW_TEX_1);
-		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
-		RenderSystem.activeTexture(GL15C.GL_TEXTURE2 + PostProcessUniforms.SHADOW_COLOR_0);
-		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
-		RenderSystem.activeTexture(GL15C.GL_TEXTURE3 + PostProcessUniforms.SHADOW_COLOR_1);
-		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
-		setupAttributes(shadow);
-	}
-	public void endShadow() {
-		end();
-	}
-	public void beginTranslucentTerrain() {
-		if (translucent == null) {
-			return;
-		}
-
-		translucent.use();
-		setupAttributes(translucent);
-
-		// TODO: This is just making it so that all translucent content renders like water. We need to properly support
-		// mc_Entity!
-		setupAttribute(translucent, "mc_Entity", waterId, -1.0F, -1.0F, -1.0F);
-	}
-
-	public void beginSky() {
-		if (skyBasic == null) {
-			return;
-		}
-
-		skyBasic.use();
-	}
-
-	public void beginTexturedSky() {
-		if (skyTextured == null) {
-			return;
-		}
-
-		skyTextured.use();
-	}
-
-	public void endTexturedSky() {
-		if (skyBasic == null) {
-			endSky();
-		} else {
-			skyBasic.use();
-		}
-	}
-
-	public void endSky() {
-		end();
-	}
-
-	public void beginWeather() {
-		if (weather == null) {
-			return;
-		}
-
-		weather.use();
-	}
-
-	public void endWeather() {
-		end();
-	}
-
-	public void beginWorldBorder() {
-		if (texturedLit == null) {
-			return;
-		}
-
-		texturedLit.use();
-	}
-
-	public void endWorldBorder() {
-		end();
-	}
-
-	public void beginBasic() {
-		if (basic == null) {
-			return;
-		}
-
-		// TODO: This is hardcoded for Sildur's, we shouldn't disable blend normally
-		GlStateManager.disableBlend();
-		basic.use();
-	}
-
-	public void beginParticleSheet(ParticleTextureSheet sheet) {
-		Pass pass = textured;
-
+	public static GbufferProgram getProgramForSheet(ParticleTextureSheet sheet) {
 		if (sheet == ParticleTextureSheet.PARTICLE_SHEET_OPAQUE || sheet == ParticleTextureSheet.TERRAIN_SHEET || sheet == ParticleTextureSheet.CUSTOM) {
-			pass = texturedLit;
-		}
-
-		if (sheet == ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT) {
+			return GbufferProgram.TEXTURED_LIT;
+		} else if (sheet == ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT) {
 			// TODO: Should we be using some other pass? (gbuffers_water?)
-			pass = texturedLit;
-		}
-
-		if (sheet == ParticleTextureSheet.PARTICLE_SHEET_LIT) {
+			return GbufferProgram.TEXTURED_LIT;
+		} else {
+			// sheet == ParticleTextureSheet.PARTICLE_SHEET_LIT
+			//
 			// Yes, this seems backwards. However, in this case, these particles are always bright regardless of the
 			// lighting condition, and therefore don't use the textured_lit program.
-			pass = textured;
+			return GbufferProgram.TEXTURED;
 		}
-
-		if (pass != null) {
-			pass.use();
-		}
-	}
-
-	public void endParticles() {
-		end();
 	}
 
 	// TODO: better way to avoid this global state?
@@ -480,10 +408,27 @@ public class ShaderPipeline {
 
 	public void beginWorldRender() {
 		isRenderingWorld = true;
+
+		if (!programStack.isEmpty()) {
+			throw new IllegalStateException("Program stack before the start of rendering, something has gone very wrong!");
+		}
+
+		// Default to rendering with BASIC for all unknown content.
+		// This probably isn't the best approach, but it works for now.
+		pushProgram(GbufferProgram.BASIC);
 	}
 
 	public void endWorldRender() {
-		GlProgramManager.useProgram(0);
+		popProgram(GbufferProgram.BASIC);
+
+		if (!programStack.isEmpty()) {
+			Iris.logger.fatal("Program stack not empty at end of rendering, something has gone very wrong!");
+			Iris.logger.fatal("Program stack log: " + programStackLog);
+			Iris.logger.fatal("Program stack content: " + programStack);
+			throw new IllegalStateException("Program stack not empty at end of rendering, something has gone very wrong!");
+		}
+
 		isRenderingWorld = false;
+		programStackLog.clear();
 	}
 }

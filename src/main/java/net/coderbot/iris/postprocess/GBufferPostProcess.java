@@ -1,16 +1,14 @@
 package net.coderbot.iris.postprocess;
 
-import static net.coderbot.iris.Iris.renderTargets;
-import static net.coderbot.iris.postprocess.PostProcessUniforms.SHADOW_TEX_1;
+import static com.mojang.blaze3d.systems.RenderSystem.bindTexture;
+import static net.coderbot.iris.rendertarget.RenderTargets.getShadowTexture;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.platform.GlStateManager;
 import net.coderbot.iris.gl.program.ProgramBuilder;
 import net.coderbot.iris.gl.uniform.UniformUpdateFrequency;
-import org.lwjgl.opengl.GL15C;
+import org.lwjgl.opengl.GL31;
 
-import net.minecraft.util.math.Matrix4f;
-
-public class PostProcessUniformsRest {
+public class GBufferPostProcess {
 	public static final int COLOR_TEX_0 = 0;
 	public static final int COLOR_TEX_1 = 1;
 	public static final int COLOR_TEX_2 = 2;
@@ -24,13 +22,11 @@ public class PostProcessUniformsRest {
 	public static final int DEPTH_TEX_1 = 11;
 	public static final int DEPTH_TEX_2 = 12;
 
-	public static final int SHADOW_TEX_0 = 4;
-
 	public static final int NOISE_TEX = 15;
 
 	public static final int DEFAULT_COLOR = COLOR_TEX_0;
 	public static final int DEFAULT_DEPTH = DEPTH_TEX_0;
-	Matrix4f orthoProjectionmatrix = new Matrix4f();
+
 	public static void addPostProcessUniforms(ProgramBuilder builder) {
 		// TODO: Some of these are shared uniforms
 
@@ -43,20 +39,18 @@ public class PostProcessUniformsRest {
 		addSampler(builder, COLOR_TEX_5, "gaux2", "colortex5");
 		addSampler(builder, COLOR_TEX_6, "gaux3", "colortex6");
 		addSampler(builder, COLOR_TEX_7, "gaux4", "colortex7");
+
 		// Shadow
-		addSampler(builder, SHADOW_TEX_0, "watershadow", "shadowtex0");//, "shadow");
+		addSampler(builder, 4, "watershadow", "shadowtex0");
 
 		// Note: This will make it so that "watershadow" is printed twice to the log, oh well
 		// Check if the "watershadow" uniform is active. If so, the "shadow" texture will have a separate texture unit
 		boolean waterShadowEnabled = builder.location("watershadow").isPresent();
 
 		addSampler(builder, waterShadowEnabled ? 5 : 4, "shadow");
-
-		addSampler(builder, SHADOW_TEX_1, "shadowtex1");
-		RenderSystem.activeTexture(GL15C.GL_TEXTURE0 + PostProcessUniforms.SHADOW_TEX_0);
-		RenderSystem.bindTexture(renderTargets.getShadowTexture().getTextureId());
-		RenderSystem.activeTexture(GL15C.GL_TEXTURE1 + PostProcessUniforms.SHADOW_TEX_1);
-		RenderSystem.bindTexture(renderTargets.getShadowTexturenoTranslucents().getTextureId());
+		GL31.glActiveTexture(4);
+		bindTexture(getShadowTexture().getTextureId());
+		addSampler(builder, 5, "shadowtex1");
 		addSampler(builder, 13, "shadowcolor", "shadowcolor0");
 		addSampler(builder, 14, "shadowcolor1");
 
@@ -67,7 +61,8 @@ public class PostProcessUniformsRest {
 
 		// Noise
 		addSampler(builder, NOISE_TEX, "noisetex");
-		//builder.uniform1f(UniformUpdateFrequency.PER_FRAME, "centerDepthSmooth", CompositeRenderer.centerDepthSampler::getCenterDepthSmoothSample);
+
+		//builder.uniform1f(UniformUpdateFrequency.PER_FRAME, "centerDepthSmooth", renderer.centerDepthSampler::getCenterDepthSmoothSample);
 	}
 
 	private static void addSampler(ProgramBuilder builder, int textureUnit, String... names) {

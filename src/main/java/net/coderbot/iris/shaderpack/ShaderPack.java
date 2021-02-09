@@ -1,6 +1,7 @@
 package net.coderbot.iris.shaderpack;
 
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -12,15 +13,6 @@ import java.util.Properties;
 
 import net.coderbot.iris.Iris;
 import net.coderbot.iris.gl.texture.InternalTextureFormat;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.InvalidIdentifierException;
-import net.minecraft.util.registry.BuiltinRegistries;
-import net.minecraft.util.registry.DynamicRegistryManager;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.world.World;
 import org.apache.logging.log4j.Level;
 
 public class ShaderPack {
@@ -29,22 +21,23 @@ public class ShaderPack {
 	private final ProgramSource gbuffersBeaconBeam;
 	private final ProgramSource gbuffersTextured;
 	private final ProgramSource gbuffersTexturedLit;
-	private final ProgramSource shadow;
 	private final ProgramSource gbuffersTerrain;
 	private final ProgramSource gbuffersDamagedBlock;
 	private final ProgramSource gbuffersWater;
 	private final ProgramSource gbuffersSkyBasic;
 	private final ProgramSource gbuffersSkyTextured;
 	private final ProgramSource gbuffersClouds;
+	private final ProgramSource gbuffersWeather;
 	private final ProgramSource gbuffersEntities;
+	private final ProgramSource gbuffersEntitiesGlowing;
 	private final ProgramSource gbuffersGlint;
 	private final ProgramSource gbuffersEntityEyes;
 	private final ProgramSource gbuffersBlock;
 	private final ProgramSource[] composite;
 	private final ProgramSource compositeFinal;
+	private final ProgramSource shadow;
 	private final IdMap idMap;
 	private final Map<String, Map<String, String>> langMap;
-	private final ShaderProperties shaderProperties;
 
 	public ShaderPack(Path root) throws IOException {
 		ShaderProperties shaderProperties = loadProperties(root, "shaders.properties")
@@ -52,19 +45,20 @@ public class ShaderPack {
 			.orElseGet(ShaderProperties::empty);
 
 		this.packDirectives = new PackDirectives();
-
+		this.shadow = readProgramSource(root, "shadow", this, shaderProperties);
 		this.gbuffersBasic = readProgramSource(root, "gbuffers_basic", this, shaderProperties);
 		this.gbuffersBeaconBeam = readProgramSource(root, "gbuffers_beaconbeam", this, shaderProperties);
 		this.gbuffersTextured = readProgramSource(root, "gbuffers_textured", this, shaderProperties);
 		this.gbuffersTexturedLit = readProgramSource(root, "gbuffers_textured_lit", this, shaderProperties);
 		this.gbuffersTerrain = readProgramSource(root, "gbuffers_terrain", this, shaderProperties);
-		this.shadow = readProgramSource(root, "shadow", this, shaderProperties);
 		this.gbuffersDamagedBlock = readProgramSource(root, "gbuffers_damagedblock", this, shaderProperties);
 		this.gbuffersWater = readProgramSource(root, "gbuffers_water", this, shaderProperties);
 		this.gbuffersSkyBasic = readProgramSource(root, "gbuffers_skybasic", this, shaderProperties);
 		this.gbuffersSkyTextured = readProgramSource(root, "gbuffers_skytextured", this, shaderProperties);
 		this.gbuffersClouds = readProgramSource(root, "gbuffers_clouds", this, shaderProperties);
+		this.gbuffersWeather = readProgramSource(root, "gbuffers_weather", this, shaderProperties);
 		this.gbuffersEntities = readProgramSource(root, "gbuffers_entities", this, shaderProperties);
+		this.gbuffersEntitiesGlowing = readProgramSource(root, "gbuffers_entities_glowing", this, shaderProperties);
 		this.gbuffersGlint = readProgramSource(root, "gbuffers_armor_glint", this, shaderProperties);
 		this.gbuffersEntityEyes = readProgramSource(root, "gbuffers_spidereyes", this, shaderProperties);
 		this.gbuffersBlock = readProgramSource(root, "gbuffers_block", this, shaderProperties);
@@ -81,8 +75,6 @@ public class ShaderPack {
 
 		this.idMap = new IdMap(root);
 		this.langMap = parseLangEntries(root);
-
-		this.shaderProperties = shaderProperties;
 	}
 
 	// TODO: Copy-paste from IdMap, find a way to deduplicate this
@@ -102,6 +94,10 @@ public class ShaderPack {
 
 	public IdMap getIdMap() {
 		return idMap;
+	}
+
+	public Optional<ProgramSource> getShadow() {
+		return shadow.requireValid();
 	}
 
 	public Optional<ProgramSource> getGbuffersBasic() {
@@ -124,10 +120,6 @@ public class ShaderPack {
 		return gbuffersTerrain.requireValid();
 	}
 
-	public Optional<ProgramSource> getShadow() {
-		return shadow.requireValid();
-	}
-
 	public Optional<ProgramSource> getGbuffersDamagedBlock() {
 		return gbuffersDamagedBlock.requireValid();
 	}
@@ -148,8 +140,16 @@ public class ShaderPack {
 		return gbuffersClouds.requireValid();
 	}
 
+	public Optional<ProgramSource> getGbuffersWeather() {
+		return gbuffersWeather.requireValid();
+	}
+
 	public Optional<ProgramSource> getGbuffersEntities() {
 		return gbuffersEntities.requireValid();
+	}
+
+	public Optional<ProgramSource> getGbuffersEntitiesGlowing() {
+		return gbuffersEntitiesGlowing.requireValid();
 	}
 
 	public Optional<ProgramSource> getGbuffersGlint() {
@@ -178,10 +178,6 @@ public class ShaderPack {
 
 	public PackDirectives getPackDirectives() {
 		return packDirectives;
-	}
-
-	public Properties getShaderProperties() {
-		return this.shaderProperties.asProperties();
 	}
 
 	private static ProgramSource readProgramSource(Path root, String program, ShaderPack pack, ShaderProperties properties) throws IOException {

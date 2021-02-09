@@ -7,14 +7,10 @@ import java.util.Objects;
 import net.coderbot.iris.gl.uniform.UniformHolder;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
 import net.minecraft.client.util.math.Vector3f;
 import net.minecraft.client.util.math.Vector4f;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Matrix4f;
-import net.minecraft.world.BlockView;
 
 /**
  * @see <a href="https://github.com/IrisShaders/ShaderDoc/blob/master/uniforms.md#celestial-bodies">Uniforms: Celestial bodies</a>
@@ -22,14 +18,13 @@ import net.minecraft.world.BlockView;
 public final class CelestialUniforms {
 	private CelestialUniforms() {
 	}
+
 	public static void addCelestialUniforms(UniformHolder uniforms) {
 		uniforms
 			.uniform1f(PER_FRAME, "sunAngle", CelestialUniforms::getSunAngle)
 			.uniformTruncated3f(PER_FRAME, "sunPosition", CelestialUniforms::getSunPosition)
 			.uniformTruncated3f(PER_FRAME, "moonPosition", CelestialUniforms::getMoonPosition)
 			.uniform1f(PER_FRAME, "shadowAngle", CelestialUniforms::getShadowAngle)
-			.uniform1f(PER_FRAME, "rainStrength", CelestialUniforms::getRainStrength)
-			.uniform1f(PER_FRAME, "wetness", CelestialUniforms::getRainStrength)
 			.uniformTruncated3f(PER_FRAME, "shadowLightPosition", CelestialUniforms::getShadowLightPosition)
 			.uniformTruncated3f(PER_FRAME, "upPosition", CelestialUniforms::getUpPosition);
 	}
@@ -44,15 +39,7 @@ public final class CelestialUniforms {
 		}
 	}
 
-	private static float getRainStrength() {
-		float rainStrength = 0.0F;
-		if(isRaining()){
-			rainStrength = 1.0F;
-		}
-		return rainStrength;
-	}
-
-	public static float getShadowAngle() {
+	private static float getShadowAngle() {
 		float shadowAngle = getSunAngle();
 
 		if (!isDay()) {
@@ -62,7 +49,7 @@ public final class CelestialUniforms {
 		return shadowAngle;
 	}
 
-	public static Vector4f getSunPosition() {
+	private static Vector4f getSunPosition() {
 		return getCelestialPosition(100.0F);
 	}
 
@@ -107,10 +94,6 @@ public final class CelestialUniforms {
 
 	private static boolean isDay() {
 		return getWorld().isDay();
-	}
-
-	private static boolean isRaining() {
-		return getWorld().isRaining();
 	}
 
 	private static ClientWorld getWorld() {

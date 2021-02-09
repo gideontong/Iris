@@ -15,7 +15,6 @@ import net.coderbot.iris.pipeline.ShaderPipeline;
 import net.coderbot.iris.postprocess.CompositeRenderer;
 import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.shaderpack.ShaderPack;
-import net.minecraft.util.Tickable;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,11 +42,10 @@ public class Iris implements ClientModInitializer {
 
 	private static ShaderPack currentPack;
 	private static ShaderPipeline pipeline;
-	public static RenderTargets renderTargets;
+	private static RenderTargets renderTargets;
 	private static CompositeRenderer compositeRenderer;
 	private static IrisConfig irisConfig;
 	private static FileSystem zipFileSystem;
-
 	public static KeyBinding reloadKeybind;
 
 	@Override
@@ -80,8 +78,8 @@ public class Iris implements ClientModInitializer {
 			logger.catching(Level.ERROR, e);
 		}
 
-		loadShaderpack();
 
+		loadShaderpack();
 		reloadKeybind = KeyBindingHelper.registerKeyBinding(new KeyBinding("iris.keybind.reload", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_R, "iris.keybinds"));
 
 		ClientTickEvents.END_CLIENT_TICK.register(minecraftClient -> {
@@ -103,10 +101,6 @@ public class Iris implements ClientModInitializer {
 				}
 			}
 		});
-	}
-
-	public static Path getShaderPackDir() {
-		return shaderpacksDirectory;
 	}
 
 	public static void loadShaderpack() {
@@ -190,8 +184,6 @@ public class Iris implements ClientModInitializer {
 			logger.error("Failed to load internal shaderpack!");
 			throw new RuntimeException("Failed to load internal shaderpack!", e);
 		}
-
-		getIrisConfig().setShaderPackName("(internal)");
 
 		logger.info("Using internal shaders");
 	}

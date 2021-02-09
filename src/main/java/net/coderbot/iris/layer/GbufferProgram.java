@@ -1,6 +1,7 @@
 package net.coderbot.iris.layer;
 
 public enum GbufferProgram {
+	SHADOW,
 	BASIC,
 	TEXTURED,
 	TEXTURED_LIT,
@@ -8,7 +9,6 @@ public enum GbufferProgram {
 	SKY_TEXTURED,
 	CLOUDS,
 	TERRAIN,
-	SHADOW,
 	TRANSLUCENT_TERRAIN,
 	DAMAGED_BLOCKS,
 	BLOCK_ENTITIES,

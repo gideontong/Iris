@@ -1,10 +1,7 @@
 package net.coderbot.iris.mixin.renderlayer;
 
-import java.util.Optional;
-
 import net.coderbot.iris.layer.GbufferProgram;
 import net.coderbot.iris.layer.IrisRenderLayerWrapper;
-import net.coderbot.iris.layer.ProgramRenderLayer;
 import net.coderbot.iris.layer.UseProgramRenderPhase;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,7 +22,7 @@ import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
 @Mixin(RenderLayer.class)
-public class MixinRenderLayer implements ProgramRenderLayer {
+public class MixinRenderLayer {
 	@Shadow
 	@Final
 	@Mutable
@@ -54,6 +51,7 @@ public class MixinRenderLayer implements ProgramRenderLayer {
 	@Unique
 	private static RenderLayer iris$LINES;
 
+	@Unique
 	private static RenderLayer iris$SHADOW;
 
 	@Shadow @Final @Mutable private static RenderLayer LEASH;
@@ -71,12 +69,6 @@ public class MixinRenderLayer implements ProgramRenderLayer {
 	@Shadow @Final @Mutable private static RenderLayer WATER_MASK;
 
 	@Shadow @Final @Mutable private static RenderLayer TRANSLUCENT_NO_CRUMBLING;
-
-	@Override
-	public Optional<GbufferProgram> getProgram() {
-		// By default, don't use shaders to render content
-		return Optional.empty();
-	}
 
 	static {
 		iris$SHADOW = wrap("iris:shadow", SOLID, GbufferProgram.SHADOW);
@@ -117,10 +109,6 @@ public class MixinRenderLayer implements ProgramRenderLayer {
 	@Overwrite
 	public static RenderLayer getLines() {
 		return iris$LINES;
-	}
-
-	private static RenderLayer getShadow() {
-		return iris$SHADOW;
 	}
 
 	private static RenderLayer wrap(String name, RenderLayer wrapped, GbufferProgram program) {

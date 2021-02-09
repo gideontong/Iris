@@ -1,7 +1,5 @@
 package net.coderbot.iris.rendertarget;
 
-import static net.coderbot.iris.ShadowProject.camera2;
-
 import java.util.Arrays;
 
 import net.coderbot.iris.Iris;
@@ -20,8 +18,7 @@ public class RenderTargets {
 	private final RenderTarget[] targets;
 	private final DepthTexture depthTexture;
 	private final DepthTexture noTranslucents;
-	private final DepthTexture shadowTexture;
-	private final DepthTexture shadowTexturenoTranslucents;
+	private static DepthTexture shadowTexture;
 
 	private int cachedWidth;
 	private int cachedHeight;
@@ -45,7 +42,6 @@ public class RenderTargets {
 		this.depthTexture = new DepthTexture(width, height);
 		this.noTranslucents = new DepthTexture(width, height);
 		this.shadowTexture = new DepthTexture(4096, 4096);
-		this.shadowTexturenoTranslucents = new DepthTexture(4096, 4096);
 
 		this.cachedWidth = width;
 		this.cachedHeight = height;
@@ -77,18 +73,12 @@ public class RenderTargets {
 		return depthTexture;
 	}
 
+	public static DepthTexture getShadowTexture() {
+		return shadowTexture;
+	}
+
 	public DepthTexture getDepthTextureNoTranslucents() {
 		return noTranslucents;
-	}
-
-	public DepthTexture getShadowTexture() {
-		return shadowTexture;
-		//return null;
-	}
-
-	public DepthTexture getShadowTexturenoTranslucents() {
-		return shadowTexturenoTranslucents;
-		//return null;
 	}
 
 	public void resizeIfNeeded(int newWidth, int newHeight) {
@@ -125,7 +115,7 @@ public class RenderTargets {
 		GlFramebuffer framebuffer =  createColorFramebuffer(stageWritesToAlt, drawBuffers);
 
 		framebuffer.addDepthAttachment(this.getDepthTexture().getTextureId());
-	//camera2.getFocusedEntity().
+
 		return framebuffer;
 	}
 

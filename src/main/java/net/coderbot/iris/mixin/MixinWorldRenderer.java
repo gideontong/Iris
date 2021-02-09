@@ -1,20 +1,40 @@
 package net.coderbot.iris.mixin;
 
-import static net.coderbot.iris.ShadowProject.camera2;
+//import static net.coderbot.iris.pipeline.ShaderPipeline.halfShadowMapPlane;
+import static net.coderbot.iris.pipeline.ShaderPipeline.shadowframe;
+import static net.coderbot.iris.uniforms.CelestialUniforms.getShadowLightPosition;
+import static org.lwjgl.opengl.ARBFramebufferObject.GL_DEPTH_ATTACHMENT;
+import static org.lwjgl.opengl.ARBFramebufferObject.GL_FRAMEBUFFER;
+import static org.lwjgl.opengl.ARBFramebufferObject.glFramebufferTexture2D;
+import static org.lwjgl.opengl.ARBInternalformatQuery2.GL_TEXTURE_2D;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11C.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11C.glDisable;
+import static org.lwjgl.opengl.GL11C.glEnable;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import net.coderbot.iris.HorizonRenderer;
 import net.coderbot.iris.Iris;
-import net.coderbot.iris.ShadowProject;
+import net.coderbot.iris.ShadowStuff;
+import net.coderbot.iris.gl.framebuffer.GlFramebuffer;
 import net.coderbot.iris.layer.GbufferProgram;
 import net.coderbot.iris.layer.GbufferPrograms;
+import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.uniforms.CapturedRenderingState;
+import net.coderbot.iris.uniforms.CelestialUniforms;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL31;
+import org.lwjgl.opengl.GL32;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -35,42 +55,40 @@ public class MixinWorldRenderer {
 	private static final String RENDER_SKY = "renderSky(Lnet/minecraft/client/util/math/MatrixStack;F)V";
 	private static final String RENDER_LAYER = "renderLayer(Lnet/minecraft/client/render/RenderLayer;Lnet/minecraft/client/util/math/MatrixStack;DDD)V";
 	private static final String RENDER_CLOUDS = "renderClouds(Lnet/minecraft/client/util/math/MatrixStack;FDDD)V";
-
-	@Shadow
-	private ClientWorld world;
+	private static int stuff = 0;
+	@Unique
+	private boolean skyTextureEnabled;
 
 	@Inject(method = RENDER, at = @At("HEAD"))
 	private void iris$beginWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
-		matrices.push();
-		matrices.multiply(Vector3f.POSITIVE_Y.getDegreesQuaternion(-90.0F));
-		matrices.multiply(Vector3f.POSITIVE_X.getDegreesQuaternion(this.world.getSkyAngle(tickDelta) * 360.0F));
-		matrices.translate(0, 100, 0);
-		CapturedRenderingState.INSTANCE.setShadowModelView(matrices.peek().getModel());
-		Matrix4f projectshadow = gameRenderer.getBasicProjectionMatrix(camera2, tickDelta, true);
-
-		CapturedRenderingState.INSTANCE.setShadowProjection(Matrix4f.projectionMatrix(1, 1, 0, 0));
-		matrices.pop();
+		ShadowStuff.shadowStart(camera, gameRenderer, matrices, tickDelta);
 		CapturedRenderingState.INSTANCE.setGbufferModelView(matrices.peek().getModel());
 		CapturedRenderingState.INSTANCE.setGbufferProjection(gameRenderer.getBasicProjectionMatrix(camera, tickDelta, true));
+		CapturedRenderingState.INSTANCE.setShadowProjection(Matrix4f.projectionMatrix(1, 1, 0, 0));
 		CapturedRenderingState.INSTANCE.setTickDelta(tickDelta);
-		ShadowProject.setupSecondCamera();
-		Iris.getPipeline().beginWorldRender();
-		GbufferPrograms.useProgram(GbufferProgram.SHADOW);
-		//Iris.getPipeline().beginShadow();
-		Iris.getPipeline().endShadow();
 
 	}
 
-	@Inject(method = RENDER, at = @At("RETURN"))
+	// Inject a bit early so that we can end our rendering in time.
+	@Inject(method = RENDER, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/BackgroundRenderer;method_23792()V"))
 	private void iris$endWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
 		Iris.getPipeline().endWorldRender();
+		//Iris.logger.warn(getShadowLightPosition());
 		Iris.getCompositeRenderer().renderAll();
 	}
 
-	// TODO: end sky
 	@Inject(method = RENDER_SKY, at = @At("HEAD"))
 	private void iris$renderSky$begin(MatrixStack matrices, float tickDelta, CallbackInfo callback) {
-		Iris.getPipeline().beginSky();
+		GbufferPrograms.push(GbufferProgram.SKY_TEXTURED);
+		skyTextureEnabled = true;
+	}
+
+	@Inject(method = RENDER_SKY, at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;disableTexture()V"))
+	private void iris$renderSky$disableTexture(MatrixStack matrices, float tickDelta, CallbackInfo callback) {
+		if (skyTextureEnabled) {
+			skyTextureEnabled = false;
+			GbufferPrograms.push(GbufferProgram.SKY_BASIC);
+		}
 	}
 
 	@Inject(method = RENDER_SKY,
@@ -81,62 +99,69 @@ public class MixinWorldRenderer {
 		new HorizonRenderer().renderHorizon(matrices);
 	}
 
-	@Inject(method = RENDER_SKY,
-		at = @At(value = "INVOKE:FIRST", target = "Lnet/minecraft/client/texture/TextureManager;bindTexture(Lnet/minecraft/util/Identifier;)V"))
-	private void iris$renderSky$beginTextured(MatrixStack matrices, float tickDelta, CallbackInfo callback) {
-		Iris.getPipeline().beginTexturedSky();
-	}
-
-	@Inject(method = RENDER_SKY,
-		slice = @Slice(from = @At(value = "INVOKE:LAST", target = "Lnet/minecraft/client/texture/TextureManager;bindTexture(Lnet/minecraft/util/Identifier;)V")),
-		at = @At(value = "INVOKE", target = "Lnet/minecraft/client/world/ClientWorld;method_23787(F)F"))
-	private void iris$renderSky$endTextured(MatrixStack matrices, float tickDelta, CallbackInfo callback) {
-		Iris.getPipeline().endTexturedSky();
+	@Inject(method = RENDER_SKY, at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;enableTexture()V"))
+	private void iris$renderSky$enableTexture(MatrixStack matrices, float tickDelta, CallbackInfo callback) {
+		if (!skyTextureEnabled) {
+			skyTextureEnabled = true;
+			GbufferPrograms.pop(GbufferProgram.SKY_BASIC);
+		}
 	}
 
 	@Inject(method = RENDER_SKY, at = @At("RETURN"))
 	private void iris$renderSky$end(MatrixStack matrices, float tickDelta, CallbackInfo callback) {
-		Iris.getPipeline().endSky();
+		GbufferPrograms.pop(GbufferProgram.SKY_TEXTURED);
 	}
 
 	@Inject(method = RENDER_CLOUDS, at = @At("HEAD"))
 	private void iris$beginClouds(MatrixStack matrices, float tickDelta, double cameraX, double cameraY, double cameraZ, CallbackInfo callback) {
-		Iris.getPipeline().beginClouds();
+		GbufferPrograms.push(GbufferProgram.CLOUDS);
 	}
 
 	@Inject(method = RENDER_CLOUDS, at = @At("RETURN"))
 	private void iris$endClouds(MatrixStack matrices, float tickDelta, double cameraX, double cameraY, double cameraZ, CallbackInfo callback) {
-		Iris.getPipeline().endClouds();
+		GbufferPrograms.pop(GbufferProgram.CLOUDS);
 	}
 
 	@Inject(method = RENDER_LAYER, at = @At("HEAD"))
 	private void iris$beginTerrainLayer(RenderLayer renderLayer, MatrixStack matrixStack, double cameraX, double cameraY, double cameraZ, CallbackInfo callback) {
-		//Iris.getPipeline().beginTerrainLayer(renderLayer);
+		if (renderLayer == RenderLayer.getSolid() || renderLayer == RenderLayer.getCutout() || renderLayer == RenderLayer.getCutoutMipped()) {
+			GbufferPrograms.push(GbufferProgram.TERRAIN);
+		} else if (renderLayer == RenderLayer.getTranslucent() || renderLayer == RenderLayer.getTripwire()) {
+			GbufferPrograms.push(GbufferProgram.TRANSLUCENT_TERRAIN);
+		} else {
+			throw new IllegalStateException("[Iris] Unexpected terrain layer: " + renderLayer);
+		}
 	}
 
 	@Inject(method = RENDER_LAYER, at = @At("RETURN"))
 	private void iris$endTerrainLayer(RenderLayer renderLayer, MatrixStack matrixStack, double cameraX, double cameraY, double cameraZ, CallbackInfo callback) {
-		//Iris.getPipeline().endTerrainLayer(renderLayer);
+		if (renderLayer == RenderLayer.getSolid() || renderLayer == RenderLayer.getCutout() || renderLayer == RenderLayer.getCutoutMipped()) {
+			GbufferPrograms.pop(GbufferProgram.TERRAIN);
+		} else if (renderLayer == RenderLayer.getTranslucent() || renderLayer == RenderLayer.getTripwire()) {
+			GbufferPrograms.pop(GbufferProgram.TRANSLUCENT_TERRAIN);
+		} else {
+			throw new IllegalStateException("[Iris] Unexpected terrain layer: " + renderLayer);
+		}
 	}
 
 	@Inject(method = "renderWeather(Lnet/minecraft/client/render/LightmapTextureManager;FDDD)V", at = @At("HEAD"))
 	private void iris$beginWeather(LightmapTextureManager manager, float f, double d, double e, double g, CallbackInfo callback) {
-		Iris.getPipeline().beginWeather();
+		GbufferPrograms.push(GbufferProgram.WEATHER);
 	}
 
 	@Inject(method = "renderWeather(Lnet/minecraft/client/render/LightmapTextureManager;FDDD)V", at = @At("RETURN"))
 	private void iris$endWeather(LightmapTextureManager manager, float f, double d, double e, double g, CallbackInfo callback) {
-		Iris.getPipeline().endWeather();
+		GbufferPrograms.pop(GbufferProgram.WEATHER);
 	}
 
 	@Inject(method = "renderWorldBorder(Lnet/minecraft/client/render/Camera;)V", at = @At("HEAD"))
 	private void iris$beginWorldBorder(Camera camera, CallbackInfo callback) {
-		Iris.getPipeline().beginWorldBorder();
+		GbufferPrograms.push(GbufferProgram.TEXTURED_LIT);
 	}
 
 	@Inject(method = "renderWorldBorder(Lnet/minecraft/client/render/Camera;)V", at = @At("RETURN"))
 	private void iris$endWorldBorder(Camera camera, CallbackInfo callback) {
-		Iris.getPipeline().endWorldBorder();
+		GbufferPrograms.pop(GbufferProgram.TEXTURED_LIT);
 	}
 
 	// TODO: Need to figure out how to properly track these values (https://github.com/IrisShaders/Iris/issues/19)
