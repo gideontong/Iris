@@ -1,3 +1,9 @@
+# Make sure to put [Mod Menu 2.0.0 Beta 2](https://github.com/TerraformersMC/ModMenu/releases/download/v2.0.0-beta.2/modmenu-2.0.0-beta.2.jar) in loom-cache\remapped-mods!
+
+
+
+*Old README*
+
 # Iris
 
 *A new shaders mod for Minecraft intended to be compatible with existing ShadersMod/Optifine shaders*

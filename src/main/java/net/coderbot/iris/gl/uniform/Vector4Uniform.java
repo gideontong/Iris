@@ -4,7 +4,7 @@ import java.util.function.Supplier;
 
 import org.lwjgl.opengl.GL21;
 
-import net.minecraft.client.util.math.Vector4f;
+import net.minecraft.util.math.Vector4f;
 
 public class Vector4Uniform extends Uniform {
 	private final Vector4f cachedValue;

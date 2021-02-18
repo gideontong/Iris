@@ -33,10 +33,10 @@ public final class SystemTimeUniforms {
 	 * A simple frame counter. On each frame, it is incremented by 1, and it wraps around every 720720 frames. It starts
 	 * at zero and goes from there.
 	 */
-	public static class FrameCounter implements IntSupplier {
+	private static class FrameCounter implements IntSupplier {
 		private int count;
 
-		public FrameCounter() {
+		private FrameCounter() {
 			this.count = 0;
 		}
 

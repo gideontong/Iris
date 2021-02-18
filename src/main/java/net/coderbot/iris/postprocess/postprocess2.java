@@ -1,14 +1,9 @@
 package net.coderbot.iris.postprocess;
 
-import static com.mojang.blaze3d.systems.RenderSystem.bindTexture;
-import static net.coderbot.iris.rendertarget.RenderTargets.getShadowTexture;
-
-import com.mojang.blaze3d.platform.GlStateManager;
 import net.coderbot.iris.gl.program.ProgramBuilder;
 import net.coderbot.iris.gl.uniform.UniformUpdateFrequency;
-import org.lwjgl.opengl.GL31;
 
-public class GBufferPostProcess {
+public class postprocess2 {
 	public static final int COLOR_TEX_0 = 0;
 	public static final int COLOR_TEX_1 = 1;
 	public static final int COLOR_TEX_2 = 2;
@@ -48,8 +43,7 @@ public class GBufferPostProcess {
 		boolean waterShadowEnabled = builder.location("watershadow").isPresent();
 
 		addSampler(builder, waterShadowEnabled ? 5 : 4, "shadow");
-		GL31.glActiveTexture(4);
-		bindTexture(getShadowTexture().getTextureId());
+
 		addSampler(builder, 5, "shadowtex1");
 		addSampler(builder, 13, "shadowcolor", "shadowcolor0");
 		addSampler(builder, 14, "shadowcolor1");

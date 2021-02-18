@@ -1,33 +1,19 @@
 package net.coderbot.iris.mixin;
 
-//import static net.coderbot.iris.pipeline.ShaderPipeline.halfShadowMapPlane;
-import static net.coderbot.iris.pipeline.ShaderPipeline.shadowframe;
-import static net.coderbot.iris.uniforms.CelestialUniforms.getShadowLightPosition;
-import static org.lwjgl.opengl.ARBFramebufferObject.GL_DEPTH_ATTACHMENT;
-import static org.lwjgl.opengl.ARBFramebufferObject.GL_FRAMEBUFFER;
-import static org.lwjgl.opengl.ARBFramebufferObject.glFramebufferTexture2D;
-import static org.lwjgl.opengl.ARBInternalformatQuery2.GL_TEXTURE_2D;
-import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
-import static org.lwjgl.opengl.GL11.glClear;
-import static org.lwjgl.opengl.GL11C.GL_DEPTH_TEST;
-import static org.lwjgl.opengl.GL11C.glDisable;
-import static org.lwjgl.opengl.GL11C.glEnable;
+import static net.coderbot.iris.uniforms.CommonUniforms.fogColorB;
+import static net.coderbot.iris.uniforms.CommonUniforms.fogColorG;
+import static net.coderbot.iris.uniforms.CommonUniforms.fogColorR;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import net.coderbot.iris.HorizonRenderer;
 import net.coderbot.iris.Iris;
-import net.coderbot.iris.ShadowStuff;
-import net.coderbot.iris.gl.framebuffer.GlFramebuffer;
 import net.coderbot.iris.layer.GbufferProgram;
 import net.coderbot.iris.layer.GbufferPrograms;
-import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.uniforms.CapturedRenderingState;
-import net.coderbot.iris.uniforms.CelestialUniforms;
+import net.coderbot.iris.uniforms.CommonUniforms;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL20C;
-import org.lwjgl.opengl.GL31;
-import org.lwjgl.opengl.GL32;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -41,7 +27,6 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.util.math.Vector3f;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.Matrix4f;
 
@@ -51,29 +36,31 @@ import net.fabricmc.api.Environment;
 @Mixin(WorldRenderer.class)
 @Environment(EnvType.CLIENT)
 public class MixinWorldRenderer {
+	@Shadow
+	private ClientWorld world;
+	@Shadow
+	@Final
+	private MinecraftClient client;
 	private static final String RENDER = "render(Lnet/minecraft/client/util/math/MatrixStack;FJZLnet/minecraft/client/render/Camera;Lnet/minecraft/client/render/GameRenderer;Lnet/minecraft/client/render/LightmapTextureManager;Lnet/minecraft/util/math/Matrix4f;)V";
 	private static final String RENDER_SKY = "renderSky(Lnet/minecraft/client/util/math/MatrixStack;F)V";
 	private static final String RENDER_LAYER = "renderLayer(Lnet/minecraft/client/render/RenderLayer;Lnet/minecraft/client/util/math/MatrixStack;DDD)V";
 	private static final String RENDER_CLOUDS = "renderClouds(Lnet/minecraft/client/util/math/MatrixStack;FDDD)V";
-	private static int stuff = 0;
+
 	@Unique
 	private boolean skyTextureEnabled;
 
 	@Inject(method = RENDER, at = @At("HEAD"))
 	private void iris$beginWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
-		ShadowStuff.shadowStart(camera, gameRenderer, matrices, tickDelta);
 		CapturedRenderingState.INSTANCE.setGbufferModelView(matrices.peek().getModel());
-		CapturedRenderingState.INSTANCE.setGbufferProjection(gameRenderer.getBasicProjectionMatrix(camera, tickDelta, true));
-		CapturedRenderingState.INSTANCE.setShadowProjection(Matrix4f.projectionMatrix(1, 1, 0, 0));
+		CapturedRenderingState.INSTANCE.setGbufferProjection(gameRenderer.getBasicProjectionMatrix(((AccessorGameRenderer)gameRenderer).fovGet(camera, tickDelta, true)));
 		CapturedRenderingState.INSTANCE.setTickDelta(tickDelta);
-
+		Iris.getPipeline().beginWorldRender();
 	}
 
 	// Inject a bit early so that we can end our rendering in time.
 	@Inject(method = RENDER, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/BackgroundRenderer;method_23792()V"))
 	private void iris$endWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
 		Iris.getPipeline().endWorldRender();
-		//Iris.logger.warn(getShadowLightPosition());
 		Iris.getCompositeRenderer().renderAll();
 	}
 
@@ -96,7 +83,10 @@ public class MixinWorldRenderer {
 		slice = @Slice(from = @At(value = "FIELD:FIRST", target = "Lnet/minecraft/client/render/WorldRenderer;lightSkyBuffer:Lnet/minecraft/client/gl/VertexBuffer;"),
 			to = @At(value = "INVOKE:FIRST", target = "Lnet/minecraft/client/render/SkyProperties;getFogColorOverride(FF)[F")))
 	private void iris$renderSky$drawHorizon(MatrixStack matrices, float tickDelta, CallbackInfo callback) {
+		GL11.glColor3f(fogColorR, fogColorG, fogColorB);
+		//();
 		new HorizonRenderer().renderHorizon(matrices);
+		//GL11.glColor3d(CommonUniforms.getSkyColor().x, CommonUniforms.getSkyColor().y, CommonUniforms.getSkyColor().z);
 	}
 
 	@Inject(method = RENDER_SKY, at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;enableTexture()V"))

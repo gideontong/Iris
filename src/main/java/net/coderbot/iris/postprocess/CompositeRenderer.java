@@ -1,8 +1,5 @@
 package net.coderbot.iris.postprocess;
 
-import static net.coderbot.iris.pipeline.ShaderPipeline.shadowframe;
-import static net.coderbot.iris.rendertarget.RenderTargets.getShadowTexture;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -138,7 +135,6 @@ public class CompositeRenderer {
 			// Note: Since we haven't rendered the hand yet, this won't contain any handheld items.
 			// Once we start rendering the hand before composite content, this will need to be addressed.
 			bindTexture(PostProcessUniforms.DEPTH_TEX_2, depthAttachmentNoTranslucents);
-			bindTexture(4, getShadowTexture().getTextureId());
 
 			bindRenderTarget(PostProcessUniforms.COLOR_TEX_0, renderTargets.get(0), renderPass.stageReadsFromAlt[0]);
 			bindRenderTarget(PostProcessUniforms.COLOR_TEX_1, renderTargets.get(1), renderPass.stageReadsFromAlt[1]);
@@ -166,19 +162,16 @@ public class CompositeRenderer {
 			// Thus, the following call transfers the content of colortex0 and the depth buffer into the main Minecraft
 			// framebuffer.
 			FramebufferBlitter.copyFramebufferContent(this.baseline, main);
-			//FramebufferBlitter.copyFramebufferContent(shadowframe, main);
 		} else {
 			// We still need to copy the depth buffer content as finalized in the gbuffer pass to the main framebuffer.
 			//
 			// This is needed for things like on-screen overlays to work properly.
 			FramebufferBlitter.copyDepthBufferContent(this.baseline, main);
-			//FramebufferBlitter.copyDepthBufferContent(shadowframe, main);
 		}
 
 		// Make sure to reset the viewport to how it was before... Otherwise weird issues could occur.
 		// Also bind the "main" framebuffer if it isn't already bound.
 		main.beginWrite(true);
-
 		GlStateManager.useProgram(0);
 
 		// TODO: We unbind these textures but it would probably make sense to unbind the other ones too.

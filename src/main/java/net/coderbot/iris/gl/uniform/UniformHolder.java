@@ -5,11 +5,11 @@ import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
-
-import net.minecraft.client.util.math.Vector3f;
-import net.minecraft.client.util.math.Vector4f;
+import net.minecraft.util.math.Vector4f;
 import net.minecraft.util.math.Matrix4f;
+import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3f;
 
 public interface UniformHolder {
 	UniformHolder addUniform(UniformUpdateFrequency updateFrequency, Uniform uniform);
@@ -46,7 +46,19 @@ public interface UniformHolder {
 		return this;
 	}
 
-	default UniformHolder uniform3f(UniformUpdateFrequency updateFrequency, String name, Supplier<Vector3f> value) {
+	default UniformHolder uniform2f(UniformUpdateFrequency updateFrequency, String name, Supplier<Vec2f> value) {
+		location(name).ifPresent(id -> addUniform(updateFrequency, new Vector2Uniform(id, value, true)));
+
+		return this;
+	}
+
+	default UniformHolder uniform2i(UniformUpdateFrequency updateFrequency, String name, Supplier<Vec2f> value) {
+		location(name).ifPresent(id -> addUniform(updateFrequency, new Vector2Uniform(id, value, false)));
+
+		return this;
+	}
+
+	default UniformHolder uniform3f(UniformUpdateFrequency updateFrequency, String name, Supplier<Vec3f> value) {
 		location(name).ifPresent(id -> addUniform(updateFrequency, new Vector3Uniform(id, value)));
 
 		return this;

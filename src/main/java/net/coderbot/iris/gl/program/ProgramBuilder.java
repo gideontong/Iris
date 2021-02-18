@@ -88,11 +88,7 @@ public class ProgramBuilder extends ProgramUniforms.Builder {
 			}
 		};
 
-		try {
-			GlProgramManager.linkProgram(program);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		GlProgramManager.linkProgram(program);
 
 		vertex.release();
 		fragment.release();

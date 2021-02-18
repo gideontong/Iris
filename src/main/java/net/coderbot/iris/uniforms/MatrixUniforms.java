@@ -15,8 +15,6 @@ public final class MatrixUniforms {
 	public static void addMatrixUniforms(UniformHolder uniforms) {
 		addMatrix(uniforms, "ModelView", CapturedRenderingState.INSTANCE::getGbufferModelView);
 		addMatrix(uniforms, "Projection", CapturedRenderingState.INSTANCE::getGbufferProjection);
-		addMatrixShadow(uniforms, "Projection", CapturedRenderingState.INSTANCE::getShadowProjection);
-		addMatrixShadow(uniforms, "ModelView", CapturedRenderingState.INSTANCE::getShadowModelView);
 	}
 
 	private static void addMatrix(UniformHolder uniforms, String name, Supplier<Matrix4f> supplier) {
@@ -24,12 +22,6 @@ public final class MatrixUniforms {
 			.uniformMatrix(PER_FRAME, "gbuffer" + name, supplier)
 			.uniformMatrix(PER_FRAME, "gbuffer" + name + "Inverse", new Inverted(supplier))
 			.uniformMatrix(PER_FRAME, "gbufferPrevious" + name, new Previous(supplier));
-	}
-	private static void addMatrixShadow(UniformHolder uniforms, String name, Supplier<Matrix4f> supplier) {
-		uniforms
-				.uniformMatrix(PER_FRAME, "shadow" + name, supplier)
-				.uniformMatrix(PER_FRAME, "shadow" + name + "Inverse", new Inverted(supplier))
-				.uniformMatrix(PER_FRAME, "shadowPrevious" + name, new Previous(supplier));
 	}
 
 	private static class Inverted implements Supplier<Matrix4f> {

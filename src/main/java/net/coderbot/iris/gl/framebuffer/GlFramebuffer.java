@@ -48,9 +48,6 @@ public class GlFramebuffer extends GlResource {
 	public void bind() {
 		GlStateManager.bindFramebuffer(GL30C.GL_FRAMEBUFFER, getGlId());
 	}
-	public void bindo() {
-		GlStateManager.bindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, getGlId());
-	}
 
 	public void bindAsReadBuffer() {
 		GlStateManager.bindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, getGlId());

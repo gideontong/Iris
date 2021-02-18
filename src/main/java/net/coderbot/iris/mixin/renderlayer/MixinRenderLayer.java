@@ -51,9 +51,6 @@ public class MixinRenderLayer {
 	@Unique
 	private static RenderLayer iris$LINES;
 
-	@Unique
-	private static RenderLayer iris$SHADOW;
-
 	@Shadow @Final @Mutable private static RenderLayer LEASH;
 	@Shadow @Final @Mutable private static RenderLayer ARMOR_GLINT;
 	@Shadow @Final @Mutable private static RenderLayer ARMOR_ENTITY_GLINT;
@@ -71,7 +68,6 @@ public class MixinRenderLayer {
 	@Shadow @Final @Mutable private static RenderLayer TRANSLUCENT_NO_CRUMBLING;
 
 	static {
-		iris$SHADOW = wrap("iris:shadow", SOLID, GbufferProgram.SHADOW);
 		SOLID = wrap("iris:terrain_solid", SOLID, GbufferProgram.TERRAIN);
 		CUTOUT_MIPPED = wrap("iris:terrain_cutout_mipped", CUTOUT_MIPPED, GbufferProgram.TERRAIN);
 		CUTOUT = wrap("iris:terrain_cutout", CUTOUT, GbufferProgram.TERRAIN);

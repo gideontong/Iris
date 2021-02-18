@@ -11,6 +11,7 @@ import net.coderbot.iris.gl.framebuffer.GlFramebuffer;
 import net.coderbot.iris.gl.program.Program;
 import net.coderbot.iris.gl.program.ProgramBuilder;
 import net.coderbot.iris.layer.GbufferProgram;
+import net.coderbot.iris.postprocess.postprocess2;
 import net.coderbot.iris.rendertarget.NoiseTexture;
 import net.coderbot.iris.rendertarget.RenderTargets;
 import net.coderbot.iris.shaderpack.ShaderPack;
@@ -32,8 +33,6 @@ import net.minecraft.util.Identifier;
  */
 public class ShaderPipeline {
 	private final RenderTargets renderTargets;
-	@Nullable
-	private final Pass shadow;
 	@Nullable
 	private final Pass basic;
 	@Nullable
@@ -69,19 +68,18 @@ public class ShaderPipeline {
 
 	private final GlFramebuffer clearAltBuffers;
 	private final GlFramebuffer clearMainBuffers;
-	public static GlFramebuffer baseline;
-	public static GlFramebuffer shadowframe;
-	public static boolean frustumOff;
+	private final GlFramebuffer baseline;
+
 	private final NoiseTexture noiseTexture;
 	private final int waterId;
-	public static ProgramBuilder builder;
+
 	private static final List<GbufferProgram> programStack = new ArrayList<>();
 	private static final List<String> programStackLog = new ArrayList<>();
-	private final float halfShadowMapPlane = 160.0F;
-	private static int stuff = 0;
+
 	public ShaderPipeline(ShaderPack pack, RenderTargets renderTargets) {
 		this.renderTargets = renderTargets;
 		waterId = pack.getIdMap().getBlockProperties().getOrDefault(new Identifier("minecraft", "water"), -1);
+
 		this.basic = pack.getGbuffersBasic().map(this::createPass).orElse(null);
 		this.textured = pack.getGbuffersTextured().map(this::createPass).orElse(basic);
 		this.texturedLit = pack.getGbuffersTexturedLit().map(this::createPass).orElse(textured);
@@ -90,7 +88,6 @@ public class ShaderPipeline {
 		this.clouds = pack.getGbuffersClouds().map(this::createPass).orElse(textured);
 		this.terrain = pack.getGbuffersTerrain().map(this::createPass).orElse(texturedLit);
 		this.translucent = pack.getGbuffersWater().map(this::createPass).orElse(terrain);
-		this.shadow = pack.getShadow().map(this::createPass).orElse(basic);
 		this.damagedBlock = pack.getGbuffersDamagedBlock().map(this::createPass).orElse(terrain);
 		this.weather = pack.getGbuffersWeather().map(this::createPass).orElse(texturedLit);
 		this.beaconBeam = pack.getGbuffersBeaconBeam().map(this::createPass).orElse(textured);
@@ -99,6 +96,7 @@ public class ShaderPipeline {
 		this.glowingEntities = pack.getGbuffersEntitiesGlowing().map(this::createPass).orElse(entities);
 		this.glint = pack.getGbuffersGlint().map(this::createPass).orElse(textured);
 		this.eyes = pack.getGbuffersEntityEyes().map(this::createPass).orElse(textured);
+
 		int[] buffersToBeCleared = pack.getPackDirectives().getBuffersToBeCleared().toIntArray();
 
 		this.clearAltBuffers = renderTargets.createFramebufferWritingToAlt(buffersToBeCleared);
@@ -164,8 +162,6 @@ public class ShaderPipeline {
 
 	private Pass getPass(GbufferProgram program) {
 		switch (program) {
-		case SHADOW:
-			return shadow;
 			case TERRAIN:
 				return terrain;
 			case TRANSLUCENT_TERRAIN:
@@ -247,7 +243,7 @@ public class ShaderPipeline {
 		// TODO: Properly handle empty shaders
 		Objects.requireNonNull(source.getVertexSource());
 		Objects.requireNonNull(source.getFragmentSource());
-
+		ProgramBuilder builder;
 
 		try {
 			builder = ProgramBuilder.begin(source.getName(), source.getVertexSource().orElse(null),
@@ -258,6 +254,7 @@ public class ShaderPipeline {
 		}
 
 		CommonUniforms.addCommonUniforms(builder, source.getParent().getIdMap());
+		postprocess2.addPostProcessUniforms(builder);
 		GlFramebuffer framebuffer = renderTargets.createFramebufferWritingToMain(source.getDirectives().getDrawBuffers());
 
 		builder.bindAttributeLocation(10, "mc_Entity");
@@ -323,7 +320,7 @@ public class ShaderPipeline {
 	}
 
 	public void destroy() {
-		destroyPasses(basic, textured, texturedLit, skyBasic, skyTextured, clouds, terrain, translucent, weather, shadow);
+		destroyPasses(basic, textured, texturedLit, skyBasic, skyTextured, clouds, terrain, translucent, weather);
 		clearAltBuffers.destroy();
 		clearMainBuffers.destroy();
 		baseline.destroy();
