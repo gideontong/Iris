@@ -68,7 +68,7 @@ public class FullScreenQuadRenderer {
 		VertexBuffer quad = new VertexBuffer();
 
 		BufferBuilder buffer = new BufferBuilder(6 * VertexFormats.POSITION_COLOR_TEXTURE.getVertexSizeInteger());
-		buffer.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE);
+		buffer.begin(GL11C.GL_TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE);
 
 		// NB: Use counterclockwise order here! Otherwise these triangles will be invisible.
 
