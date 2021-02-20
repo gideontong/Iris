@@ -13,7 +13,6 @@
     "MixinTranslationStorage",
     "MixinWorldRenderer",
     "fabulous.MixinDisableFabulousGraphics",
-    "fabulous.MixinOption",
     "gbuffer.MixinWorldRenderer",
     "renderlayer.MixinFixEyesTranslucency",
     "renderlayer.MixinRenderLayer",
