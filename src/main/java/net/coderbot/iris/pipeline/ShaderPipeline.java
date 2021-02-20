@@ -347,9 +347,11 @@ public class ShaderPipeline {
 
 		AlphaTestOverride alphaTestOverride = source.getDirectives().getAlphaTestOverride().orElse(null);
 
-		if (alphaTestOverride != null) {
-			Iris.logger.info("Configured alpha test override for " + source.getName() + ": " + alphaTestOverride);
+			if (alphaTestOverride != null) {
+				Iris.logger.info("Configured alpha test override for " + source.getName() + ": " + alphaTestOverride);
+			}
 		}
+	}
 
 	public void prepareRenderTargets() {
 		Framebuffer main = MinecraftClient.getInstance().getFramebuffer();
