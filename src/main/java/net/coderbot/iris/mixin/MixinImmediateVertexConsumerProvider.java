@@ -4,7 +4,7 @@ import java.util.Set;
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.coderbot.iris.Iris;
-import net.coderbot.iris.layer.IrisRenderLayerWrapper;
+// import net.coderbot.iris.layer.IrisRenderLayerWrapper;
 import net.coderbot.iris.mixin.renderlayer.RenderPhaseAccessor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -22,6 +22,7 @@ public class MixinImmediateVertexConsumerProvider {
 
 	@Inject(method = "draw(Lnet/minecraft/client/render/RenderLayer;)V", at = @At("HEAD"))
 	private void iris$beginDraw(RenderLayer layer, CallbackInfo callback) {
+		/*
 		if (!(layer instanceof IrisRenderLayerWrapper)) {
 			String name = ((RenderPhaseAccessor) layer).getName();
 
@@ -33,5 +34,6 @@ public class MixinImmediateVertexConsumerProvider {
 
 			Iris.logger.warn("Iris has detected a non-wrapped render layer, it will not be rendered with the correct shader program: " + name);
 		}
+		*/
 	}
 }

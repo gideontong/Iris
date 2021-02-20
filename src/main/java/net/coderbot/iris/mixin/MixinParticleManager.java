@@ -3,8 +3,8 @@ package net.coderbot.iris.mixin;
 import java.util.Iterator;
 import java.util.Objects;
 
-import net.coderbot.iris.layer.GbufferProgram;
-import net.coderbot.iris.layer.GbufferPrograms;
+// import net.coderbot.iris.layer.GbufferProgram;
+// import net.coderbot.iris.layer.GbufferPrograms;
 import net.coderbot.iris.pipeline.ShaderPipeline;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -38,7 +38,7 @@ public class MixinParticleManager {
 	private void iris$beginDrawingParticles(MatrixStack matrixStack, VertexConsumerProvider.Immediate immediate,
 											 LightmapTextureManager lightmapTextureManager, Camera camera, float f,
 											 CallbackInfo ci) {
-		GbufferPrograms.push(GbufferProgram.TEXTURED_LIT);
+		// GbufferPrograms.push(GbufferProgram.TEXTURED_LIT);
 	}
 
 	@Inject(method = RENDER_PARTICLES, at = @At(value = "INVOKE", target = DRAW), locals = LocalCapture.CAPTURE_FAILHARD)
@@ -46,7 +46,7 @@ public class MixinParticleManager {
 										LightmapTextureManager lightmapTextureManager, Camera camera, float f,
 										CallbackInfo ci, Iterator<ParticleTextureSheet> sheets, ParticleTextureSheet sheet,
 										Iterable<Particle> particles, Tessellator tessellator) {
-		GbufferPrograms.push(ShaderPipeline.getProgramForSheet(sheet));
+		// GbufferPrograms.push(ShaderPipeline.getProgramForSheet(sheet));
 
 		if (lastSheet != null) {
 			throw new IllegalStateException("Particle rendering in weird state: lastSheet != null, lastSheet = " + lastSheet);
@@ -59,7 +59,7 @@ public class MixinParticleManager {
 	private void iris$postDrawParticleSheet(MatrixStack matrixStack, VertexConsumerProvider.Immediate immediate,
 											 LightmapTextureManager lightmapTextureManager, Camera camera, float f,
 											 CallbackInfo ci) {
-		GbufferPrograms.pop(ShaderPipeline.getProgramForSheet(Objects.requireNonNull(lastSheet)));
+		// GbufferPrograms.pop(ShaderPipeline.getProgramForSheet(Objects.requireNonNull(lastSheet)));
 		lastSheet = null;
 	}
 
@@ -67,6 +67,6 @@ public class MixinParticleManager {
 	private void iris$finishDrawingParticles(MatrixStack matrixStack, VertexConsumerProvider.Immediate immediate,
 										LightmapTextureManager lightmapTextureManager, Camera camera, float f,
 										CallbackInfo ci) {
-		GbufferPrograms.pop(GbufferProgram.TEXTURED_LIT);
+		// GbufferPrograms.pop(GbufferProgram.TEXTURED_LIT);
 	}
 }

@@ -1,8 +1,8 @@
 package net.coderbot.iris.mixin.renderlayer;
 
-import net.coderbot.iris.layer.GbufferProgram;
-import net.coderbot.iris.layer.IrisRenderLayerWrapper;
-import net.coderbot.iris.layer.UseProgramRenderPhase;
+// import net.coderbot.iris.layer.GbufferProgram;
+// import net.coderbot.iris.layer.IrisRenderLayerWrapper;
+// import net.coderbot.iris.layer.UseProgramRenderPhase;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -68,6 +68,7 @@ public class MixinRenderLayer {
 	@Shadow @Final @Mutable private static RenderLayer TRANSLUCENT_NO_CRUMBLING;
 
 	static {
+		/*
 		SOLID = wrap("iris:terrain_solid", SOLID, GbufferProgram.TERRAIN);
 		CUTOUT_MIPPED = wrap("iris:terrain_cutout_mipped", CUTOUT_MIPPED, GbufferProgram.TERRAIN);
 		CUTOUT = wrap("iris:terrain_cutout", CUTOUT, GbufferProgram.TERRAIN);
@@ -96,12 +97,10 @@ public class MixinRenderLayer {
 		DIRECT_ENTITY_GLINT = wrapGlint("direct_entity_glint", DIRECT_ENTITY_GLINT);
 
 		LIGHTNING = wrap("iris:lightning", LIGHTNING, GbufferProgram.ENTITIES);
+		*/
 	}
-
-	/**
-	 * @author coderbot
-	 * @reason Use the wrapped render layer instead.
-	 */
+	
+	/*
 	@Overwrite
 	public static RenderLayer getLines() {
 		return iris$LINES;
@@ -224,4 +223,6 @@ public class MixinRenderLayer {
 
 		cir.setReturnValue(wrap(base, GbufferProgram.BLOCK_ENTITIES));
 	}
+
+	*/
 }
