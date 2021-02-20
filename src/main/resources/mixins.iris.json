@@ -5,24 +5,18 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "MixinDebugHud",
-    "MixinEntityRenderDispatcher",
     "MixinGameRenderer",
     "MixinGlStateManager",
     "MixinImmediateVertexConsumerProvider",
     "MixinParticleManager",
     "MixinTranslationStorage",
     "MixinWorldRenderer",
-    "fabulous.MixinDisableFabulousGraphics",
-    "gbuffer.MixinWorldRenderer",
-    "renderlayer.MixinFixEyesTranslucency",
-    "renderlayer.MixinRenderLayer",
-    "renderlayer.RenderLayerAccessor",
-    "renderlayer.RenderPhaseAccessor",
     "texunits.MixinBufferVertexConsumer",
     "texunits.MixinGlStateManager",
     "texunits.MixinLightmapTextureManager",
     "texunits.MixinOverlayTexture",
-    "texunits.MixinVertexFormats"
+    "texunits.MixinVertexFormats",
+    "gbuffer.MixinWorldRenderer"
   ],
   "injectors": {
     "defaultRequire": 1
