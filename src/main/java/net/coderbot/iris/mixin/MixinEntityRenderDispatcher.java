@@ -18,6 +18,7 @@ import net.fabricmc.api.Environment;
 @Environment(EnvType.CLIENT)
 @Mixin(EntityRenderDispatcher.class)
 public class MixinEntityRenderDispatcher {
+	/*
 	private static final String RENDER_SHADOW =
 		"renderShadow(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;Lnet/minecraft/entity/Entity;FFLnet/minecraft/world/WorldView;F)V";
 
@@ -29,4 +30,5 @@ public class MixinEntityRenderDispatcher {
 			ci.cancel();
 		}
 	}
+	*/
 }

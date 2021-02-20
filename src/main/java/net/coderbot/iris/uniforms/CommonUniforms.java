@@ -97,11 +97,11 @@ public final class CommonUniforms {
 	}
 
 	private static int isEyeInWater() {
-		FluidState submergedFluid = client.gameRenderer.getCamera().getSubmergedFluidState();
+		Entity cameraEntity = Objects.requireNonNull(client.getCameraEntity());
 
-		if (submergedFluid.isIn(FluidTags.WATER)) {
+		if (cameraEntity.isSubmergedInWater()) {
 			return 1;
-		} else if (submergedFluid.isIn(FluidTags.LAVA)) {
+		} else if (cameraEntity.isSubmergedIn(FluidTags.LAVA)) {
 			return 2;
 		} else {
 			return 0;
